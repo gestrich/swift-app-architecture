@@ -1,5 +1,5 @@
 ---
-name: swiftui
+name: swift-swiftui
 description: Provides SwiftUI Model-View architecture patterns including enum-based state, model composition, dependency injection, view identity, and observable model conventions. Use when building SwiftUI views, creating observable models, implementing state management, or connecting use cases to the UI.
 user-invocable: true
 ---

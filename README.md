@@ -28,19 +28,19 @@ claude --plugin-dir ~/path/to/swift-app-architecture
 
 ## Skills
 
-Skills are invoked via slash commands in Claude Code (e.g., `/architecture`).
+Skills are invoked via slash commands in Claude Code (e.g., `/swift-architecture`).
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| Architecture | `/architecture` | 4-layer Swift app architecture (Apps, Features, Services, SDKs) — layer responsibilities, dependency rules, placement guidance, feature creation, configuration, code style, and reference examples |
-| SwiftUI | `/swiftui` | SwiftUI Model-View patterns — enum-based state, model composition, dependency injection, view identity, and observable model conventions |
-| Skill Authoring | `/skill-authoring` | Guides creation and editing of Claude skills — structure, best practices, and examples |
+| Architecture | `/swift-architecture` | 4-layer Swift app architecture (Apps, Features, Services, SDKs) — layer responsibilities, dependency rules, placement guidance, feature creation, configuration, code style, and reference examples |
+| SwiftUI | `/swift-swiftui` | SwiftUI Model-View patterns — enum-based state, model composition, dependency injection, view identity, and observable model conventions |
+| Skill Authoring | `/swift-skill-authoring` | Guides creation and editing of Claude skills — structure, best practices, and examples |
 
 ## Troubleshooting
 
 ### Slash commands not showing in terminal
 
-The slash commands (e.g., `/architecture`) may not appear in the terminal autocomplete but will show up in the Claude Code VSCode extension. Use the VSCode extension for the best experience with slash command discovery.
+The slash commands (e.g., `/swift-architecture`) may not appear in the terminal autocomplete but will show up in the Claude Code VSCode extension. Use the VSCode extension for the best experience with slash command discovery.
 
 ### Updating the plugin
 

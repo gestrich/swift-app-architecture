@@ -1,5 +1,5 @@
 ---
-name: skill-authoring
+name: swift-skill-authoring
 description: Guides creation and editing of Claude skills. Use when creating new skills, improving existing skills, understanding skill structure, or learning best practices for skill authoring.
 user-invocable: true
 ---

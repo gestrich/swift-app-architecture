@@ -1,5 +1,5 @@
 ---
-name: architecture
+name: swift-architecture
 description: Provides the 4-layer Swift app architecture (Apps, Features, Services, SDKs) including layer responsibilities, dependency rules, placement guidance, feature creation, configuration, code style, and reference examples. Use when the user asks about the architecture, needs to understand layers, wants to add code, create features, or review architectural compliance.
 user-invocable: true
 ---
