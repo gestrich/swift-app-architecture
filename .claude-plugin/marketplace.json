@@ -1,0 +1,8 @@
+{
+  "namespace": "gestrich-swift-app-architecture",
+  "plugins": [
+    {
+      "path": "./plugin"
+    }
+  ]
+}
