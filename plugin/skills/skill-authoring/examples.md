@@ -1,6 +1,6 @@
 # Skill Examples
 
-Annotated examples of well-structured skills from the ForeFlight repository.
+Annotated examples of well-structured skills.
 
 ## Example 1: Simple Single-File Skill
 
@@ -68,7 +68,7 @@ This skill demonstrates progressive disclosure with a navigation table.
 ```yaml
 ---
 name: design-kit
-description: Provide context about the DesignKit package for ForeFlight's SwiftUI design system.
+description: Provide context about the DesignKit package for the app's SwiftUI design system.
 user-invocable: true
 ---
 ```
@@ -125,27 +125,27 @@ This skill demonstrates handling complex, interconnected topics.
 ```yaml
 ---
 name: app-architecture
-description: Encapsulates knowledge about FFM's composition root pattern, FFSL service locator, and how services are wired together. Use when creating composition roots, understanding service dependencies, or integrating features with the main app.
+description: Encapsulates knowledge about the app's composition root pattern, service locator, and how services are wired together. Use when creating composition roots, understanding service dependencies, or integrating features with the main app.
 user-invocable: true
 ---
 ```
 
 **Description analysis:**
-- Lists specific patterns: "composition root pattern, FFSL service locator"
+- Lists specific patterns: "composition root pattern, service locator"
 - Concrete use cases: "creating composition roots, understanding service dependencies"
 
 ### Structure Highlights
 
 ```markdown
-# FFM App Architecture
+# App Architecture
 
 ## Which Document Do I Need?
 
 | Situation | Document |
 |-----------|----------|
 | Creating a new service/composition root | [composition-root.md](composition-root.md) |
-| Understanding FFSL service locator | [ffsl-service-locator.md](ffsl-service-locator.md) |
-| Adding UI to a feature in FFM libraries | [libraries-conventions.md](libraries-conventions.md) |
+| Understanding the service locator | [service-locator.md](service-locator.md) |
+| Adding UI to a feature library | [libraries-conventions.md](libraries-conventions.md) |
 
 ## Quick Overview
 
@@ -184,7 +184,7 @@ This skill demonstrates a knowledge skill that Claude uses automatically.
 ```yaml
 ---
 name: module-structure
-description: Explains ForeFlight iOS package architecture, layers (features, services, sdks, ui-toolkits, utilities), and the FFM target. Use when creating Swift packages, adding packages to the ForeFlight target, editing dependencies.yml, understanding where code belongs, or asking about modular architecture.
+description: Explains the iOS package architecture, layers (features, services, sdks, ui-toolkits, utilities), and the main app target. Use when creating Swift packages, adding packages to the app target, editing dependencies.yml, understanding where code belongs, or asking about modular architecture.
 user-invocable: false
 ---
 ```

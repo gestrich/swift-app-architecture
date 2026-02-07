@@ -6,7 +6,7 @@ user-invocable: true
 
 # Claude Skill Authoring
 
-This skill provides guidance for creating and editing Claude skills in the ForeFlight repository.
+This skill provides guidance for creating and editing Claude skills.
 
 ## Which Document Do I Need?
 
