@@ -1,8 +1,18 @@
 {
-  "namespace": "gestrich-swift-app-architecture",
+  "name": "gestrich-swift-app-architecture",
+  "version": "1.0.0",
+  "description": "Architectural patterns and best practices for Swift application development",
+  "owner": {
+    "name": "Bill Gestrich",
+    "url": "https://github.com/gestrich"
+  },
   "plugins": [
     {
-      "path": "./plugin"
+      "name": "swift-app-architecture",
+      "source": "./plugin",
+      "description": "Architectural patterns and best practices for Swift application development",
+      "version": "1.0.0",
+      "category": "development"
     }
   ]
 }
