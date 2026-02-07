@@ -2,7 +2,10 @@
   "name": "swift-app-architecture",
   "version": "1.0.0",
   "description": "Architectural patterns and best practices for Swift application development",
-  "author": "Bill Gestrich",
+  "author": {
+    "name": "Bill Gestrich",
+    "url": "https://github.com/gestrich"
+  },
   "keywords": [
     "swift",
     "architecture",
