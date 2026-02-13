@@ -1,6 +1,6 @@
 ---
 name: swift-swiftui
-description: Provides SwiftUI Model-View architecture patterns including enum-based state, model composition, dependency injection, view identity, and observable model conventions. Use when building SwiftUI views, creating observable models, implementing state management, or connecting use cases to the UI.
+description: Provides SwiftUI Model-View architecture patterns including enum-based state, model composition, dependency injection, view state vs model state, view identity, and observable model conventions. Use when building SwiftUI views, creating observable models, implementing state management, or connecting use cases to the UI.
 user-invocable: true
 ---
 
@@ -20,6 +20,7 @@ SwiftUI follows **Model-View (MV)** — not MVVM. Views connect directly to `@Ob
 | Enum-based state, state flow, state ownership | Defining model state or consuming use case streams | [model-state.md](model-state.md) |
 | Parent/child models, optional models, lifecycle | Composing models or managing model initialization | [model-composition.md](model-composition.md) |
 | Environment injection, view-scoped models | Injecting models into views | [dependency-injection.md](dependency-injection.md) |
+| View state vs model state, selection ownership | Deciding what belongs in `@State` vs `@Observable` models | [view-state.md](view-state.md) |
 | `.id()` modifier for view reset | Resetting view state when dependencies change | [view-identity.md](view-identity.md) |
 | Domain structs, prerequisite data | Creating data types or handling missing data in views | [data-models.md](data-models.md) |
 

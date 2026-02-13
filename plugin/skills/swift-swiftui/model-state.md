@@ -124,3 +124,58 @@ init(from useCaseState: UseCaseState, prior: Snapshot?) {
     }
 }
 ```
+
+## Why Models Must Not Orchestrate
+
+When a model performs multiple steps directly — fetching data, saving to disk, updating a cache — it becomes responsible for keeping all its state consistent after each step. This leads to "refresh" methods scattered throughout the model as side effects.
+
+**Anti-pattern — model orchestrates and must manually synchronize:**
+
+```swift
+@MainActor @Observable
+class ImportModel {
+    var items: [Item] = []
+    var summary: Summary?
+    var lastSyncDate: Date?
+
+    func performImport(source: Source) async throws {
+        let data = try await apiClient.fetch(source: source)
+        try await storage.save(data)
+        items = try await storage.loadAll()       // Must remember to refresh
+        summary = try await storage.loadSummary() // Must remember to refresh
+        lastSyncDate = Date()                     // Must remember to update
+    }
+}
+```
+
+Every new operation must remember to refresh every piece of dependent state. Miss one and the UI shows stale data. As the model grows, these synchronization obligations compound — each method must know about every other piece of state it might affect.
+
+**Preferred — use case handles the operation atomically:**
+
+```swift
+// Use case returns one coherent snapshot per yield
+public struct ImportUseCase: StreamingUseCase {
+    func stream(options: Options) -> AsyncThrowingStream<ImportState, Error> {
+        // Fetches, saves, and builds a complete snapshot internally
+        // The snapshot includes items, summary, and sync date — all consistent
+    }
+}
+
+// Model just assigns the result
+@MainActor @Observable
+class ImportModel {
+    var state: ModelState = .uninitialized
+
+    func startImport(source: Source) {
+        Task {
+            for try await useCaseState in useCase.stream(options: .init(source: source)) {
+                state = ModelState(from: useCaseState, prior: state.snapshot)
+            }
+        }
+    }
+}
+```
+
+The use case yields a complete, consistent state at each step. The model receives it and assigns — no refresh logic, no risk of forgetting to update a dependent property. The observation system picks up the change and the view renders the new state.
+
+**Key insight:** Use cases make multi-step operations atomic from the model's perspective. The model never lands in a half-updated state because it never manages the individual steps.

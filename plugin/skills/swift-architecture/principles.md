@@ -26,7 +26,7 @@ try await gitClient.push(...)
 try await apiClient.createPR(...)
 ```
 
-**Why:** Keeps app-layer thin, makes business logic testable, and ensures CLI and Mac app don't duplicate orchestration.
+**Why:** When a model orchestrates multiple steps directly, it becomes responsible for keeping all its state consistent after each step — refreshing dependent data, updating caches, handling partial failures. Miss one refresh and the UI shows stale data. Use cases solve this by making multi-step operations atomic from the model's perspective: each stream yield is a complete, consistent state that the model assigns directly. This also keeps the app-layer thin, makes business logic testable, and ensures CLI and Mac app don't duplicate orchestration.
 
 ### 2. Zero Duplication
 
