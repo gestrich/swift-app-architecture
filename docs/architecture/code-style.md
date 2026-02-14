@@ -79,3 +79,41 @@ let name = user.displayName  // Let caller handle nil appropriately
 **When fallbacks are appropriate**: Only use optionals with fallbacks when the value genuinely may be absent and that absence is expected behavior, not an error condition. Examples include user preferences that haven't been set yet or optional UI customizations.
 
 **Rationale**: Default values hide configuration decisions and make debugging harder. When something breaks, you want to know immediately that required data was missing, not discover later that a silent fallback caused unexpected behavior. APIs should require the data they need from the client.
+
+## Propagate Errors — Don't Swallow Them
+
+Always propagate errors to callers rather than catching and ignoring them. SDKs and use cases should mark methods `throws` and let errors bubble up. The only place errors should be caught is at the app layer (models and CLI commands), where they can be presented to the user.
+
+```swift
+// Avoid — silently swallows the error
+func save(data: Data) {
+    do {
+        try storage.write(data)
+    } catch {
+        print("save failed")
+    }
+}
+
+// Prefer — let it propagate
+func save(data: Data) throws {
+    try storage.write(data)
+}
+```
+
+**At the app layer**, catch errors to set state the UI can display:
+
+```swift
+// Model catches at the boundary to show the user
+func save() {
+    Task {
+        do {
+            try await useCase.run(options: opts)
+            state = .ready(snapshot)
+        } catch {
+            state = .error(error, prior: state.snapshot)
+        }
+    }
+}
+```
+
+**Rationale**: Swallowed errors hide failures and make debugging nearly impossible. When an operation fails, the caller needs to know so they can respond — in most cases that means showing the user an error message. If a lower layer catches and discards an error, the UI has no way to communicate the failure.
