@@ -24,6 +24,7 @@ SwiftUI follows **Model-View (MV)** — not MVVM. Views connect directly to `@Ob
 | `.id()` modifier for view reset | Resetting view state when dependencies change | [view-identity.md](view-identity.md) |
 | Heavyweight state, model scalability | Managing memory when entities carry large or streaming data | [model-scalability.md](model-scalability.md) |
 | Domain structs, prerequisite data | Creating data types or handling missing data in views | [data-models.md](data-models.md) |
+| Alerts | Using SwiftUI's `.alert` API | [alerts.md](alerts.md) |
 
 ## Source Documentation
 

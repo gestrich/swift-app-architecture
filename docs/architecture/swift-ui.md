@@ -569,3 +569,4 @@ struct ParentView: View {
 - **[Layers.md](Layers.md)** — Detailed layer descriptions with examples
 - **[Examples.md](Examples.md)** — Reference implementation walkthrough
 - **[Configuration.md](Configuration.md)** — Configuration and data path management
+- **[alerts.md](alerts.md)** — Alert patterns including optional-data-driven alerts
