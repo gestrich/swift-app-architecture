@@ -44,12 +44,7 @@ The slash commands (e.g., `/swift-architecture`) may not appear in the terminal 
 
 ### Updating the plugin
 
-If you need to update the plugin to a newer version, you may need to remove and re-add it:
-
-```
-/plugin uninstall swift-app-architecture@gestrich-swift-app-architecture
-/plugin install swift-app-architecture@gestrich-swift-app-architecture
-```
+Asking Claude to update the plugin via the CLI does not appear to work — it will report success but won't actually pull the latest version. The most reliable way to update is to uninstall and reinstall the plugin through the Claude Code UI. The marketplace does not need to be re-added.
 
 ### Slash commands not accessible after installation
 
