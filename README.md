@@ -60,7 +60,7 @@ If slash commands aren't working after installing the plugin, try uninstalling a
 
 ```
 /plugin uninstall swift-app-architecture@gestrich-swift-app-architecture
-/plugin install swift-app-architecture@gestrich-swift-app-architecture --scope project
+/plugin install swift-app-architecture@gestrich-swift-app-architecture --scope user
 ```
 
 ### Plugin not available after adding marketplace
