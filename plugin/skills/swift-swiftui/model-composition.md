@@ -123,6 +123,77 @@ struct ContentView: View {
 | `appModel.integrationModel = newModel` | Parent view re-renders (model existence changed) |
 | `integrationModel.state = .loading` | Child view re-renders (internal state changed) |
 
+## Child-to-Parent State Propagation
+
+When child state changes affect the parent, the approach depends on what changed:
+
+**Child model instance replaced** — route through the parent, since the parent owns the reference:
+
+```swift
+@MainActor @Observable
+class AppModel {
+    var settingsModel: SettingsModel? {
+        didSet { Task { await refreshState() } }
+    }
+
+    func configure(_ config: SettingsConfiguration) {
+        settingsModel = SettingsModel(config: config)
+    }
+}
+```
+
+**Child model internal state changes** — the child provides a factory method that returns a new `AsyncStream` per caller. Each subscriber gets its own independent stream, avoiding the single-consumer pitfall of a shared `AsyncStream` property:
+
+```swift
+@MainActor @Observable
+class SettingsModel {
+    private(set) var current: Settings {
+        didSet {
+            for continuation in continuations.values {
+                continuation.yield(current)
+            }
+        }
+    }
+    private var continuations: [UUID: AsyncStream<Settings>.Continuation] = [:]
+
+    func observeChanges() -> AsyncStream<Settings> {
+        let id = UUID()
+        let (stream, continuation) = AsyncStream.makeStream(of: Settings.self)
+        continuations[id] = continuation
+        continuation.onTermination = { [weak self] _ in
+            self?.continuations.removeValue(forKey: id)
+        }
+        return stream
+    }
+
+    func apply(_ setting: Setting) {
+        current = current.applying(setting)
+    }
+}
+
+@MainActor @Observable
+class AppModel {
+    let settingsModel: SettingsModel
+    private let dataUseCase: FetchDataUseCase
+
+    init(settingsModel: SettingsModel, dataUseCase: FetchDataUseCase) {
+        self.settingsModel = settingsModel
+        self.dataUseCase = dataUseCase
+        Task { await observeSettingsModel() }
+    }
+
+    private func observeSettingsModel() async {
+        for await settings in settingsModel.observeChanges() {
+            for try await snapshot in dataUseCase.stream(settings: settings) {
+                state = .ready(snapshot)
+            }
+        }
+    }
+}
+```
+
+Views call `settingsModel.apply()` directly — the child model remains fully usable on its own. The parent subscribes at construction time without the child knowing who is listening.
+
 ## Model Lifecycle
 
 Models self-initialize on `init`. This eliminates the need for views to trigger loading on appear.
@@ -145,23 +216,3 @@ class ImportModel {
 }
 ```
 
-**When child models affect parent state**, refresh the parent when the child changes:
-
-```swift
-@MainActor @Observable
-class AppModel {
-    var state: AppState = .loading
-    var integrationModel: IntegrationModel? {
-        didSet { Task { await refreshState() } }
-    }
-
-    init() {
-        Task { await refreshState() }
-    }
-
-    private func refreshState() async {
-        let status = await integrationModel?.fetchStatus()
-        state = .ready(AppSnapshot(integration: status))
-    }
-}
-```
