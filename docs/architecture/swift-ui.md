@@ -157,22 +157,22 @@ Parent models can hold child models as properties. Each model owns its slice of 
 ```swift
 // ❌ BAD: Parent duplicates child state
 @MainActor @Observable
-final class ParentModel {
+final class AppModel {
     var state: State
     enum State {
-        case stopping(services: ServicesProgress)  // Duplicated from child!
+        case stopping(settings: SettingsProgress)  // Duplicated from child!
     }
 }
 
 // ✅ GOOD: Parent holds child model, accesses its state
 @MainActor @Observable
-final class ParentModel {
+final class AppModel {
     var state: State
-    let servicesModel: ServicesModel  // Child model reference
+    let settingsModel: SettingsModel
     enum State {
         case idle
         case stoppingPrimary(PrimaryProgress)
-        case waitingForServices
+        case waitingForSettings
         case stopped
     }
 }
@@ -182,9 +182,9 @@ final class ParentModel {
 
 ```swift
 @MainActor @Observable
-final class ParentModel {
+final class AppModel {
     private(set) var state: State = .idle
-    let servicesModel: ServicesModel
+    let settingsModel: SettingsModel
 
     func stopAll() async throws {
         state = .stoppingPrimary(.init())
@@ -192,8 +192,8 @@ final class ParentModel {
             state = .stoppingPrimary(progress)
         }
 
-        state = .waitingForServices
-        try await servicesModel.stopAll()  // Call child model, not use case
+        state = .waitingForSettings
+        try await settingsModel.stopAll()  // Call child model, not use case
 
         state = .stopped
     }
@@ -205,13 +205,13 @@ final class ParentModel {
 **Views access child state through child model:**
 
 ```swift
-struct ParentView: View {
-    @Bindable var model: ParentModel
+struct AppView: View {
+    @Bindable var model: AppModel
 
     var body: some View {
         switch model.state {
-        case .waitingForServices:
-            ServicesProgressView(model: model.servicesModel)
+        case .waitingForSettings:
+            SettingsProgressView(model: model.settingsModel)
         // ...
         }
     }
@@ -227,20 +227,20 @@ A model that doesn't exist is clearer than a model that exists but can't do anyt
 ```swift
 @MainActor @Observable
 class AppModel {
-    var integrationModel: IntegrationModel?  // nil if not configured
+    var settingsModel: SettingsModel?  // nil if not configured
 
     init() {
-        if let config = try? IntegrationConfiguration.load() {
-            self.integrationModel = IntegrationModel(config: config)
+        if let config = try? SettingsConfiguration.load() {
+            self.settingsModel = SettingsModel(config: config)
         }
     }
 
-    func configure(_ config: IntegrationConfiguration) {
-        integrationModel = IntegrationModel(config: config)
+    func configure(_ config: SettingsConfiguration) {
+        settingsModel = SettingsModel(config: config)
     }
 
-    func clearIntegration() {
-        integrationModel = nil
+    func clearSettings() {
+        settingsModel = nil
     }
 }
 ```
@@ -248,14 +248,14 @@ class AppModel {
 **View conditional rendering:**
 
 ```swift
-struct ContentView: View {
+struct AppView: View {
     @State var appModel = AppModel()
 
     var body: some View {
-        if let integrationModel = appModel.integrationModel {
-            IntegrationView(model: integrationModel)
+        if let settingsModel = appModel.settingsModel {
+            SettingsView(model: settingsModel)
         } else {
-            ConfigureIntegrationPrompt()
+            ConfigureSettingsPrompt()
         }
     }
 }
@@ -265,13 +265,84 @@ struct ContentView: View {
 
 | Change | What Updates |
 |--------|--------------|
-| `appModel.integrationModel = newModel` | Parent view re-renders (model existence changed) |
-| `integrationModel.state = .loading` | Child view re-renders (model's internal state changed) |
+| `appModel.settingsModel = newModel` | Parent view re-renders (model existence changed) |
+| `settingsModel.state = .loading` | Child view re-renders (model's internal state changed) |
 
 **Requirements:**
 
 - Use `@MainActor` on all models — observation may fail silently for changes on background threads
 - Store root models in the `App` struct, not individual views, to avoid re-initialization on view rebuilds
+
+### Child-to-Parent State Propagation
+
+When child state changes affect the parent, the approach depends on what changed:
+
+**Child model instance replaced** — route through the parent, since the parent owns the reference:
+
+```swift
+@MainActor @Observable
+class AppModel {
+    var settingsModel: SettingsModel? {
+        didSet { Task { await refreshState() } }
+    }
+
+    func configure(_ config: SettingsConfiguration) {
+        settingsModel = SettingsModel(config: config)
+    }
+}
+```
+
+**Child model internal state changes** — the child provides a factory method that returns a new `AsyncStream` per caller. Each subscriber gets its own independent stream, avoiding the single-consumer pitfall of a shared `AsyncStream` property. The child's `didSet` on its state property broadcasts to all observers automatically, and `onTermination` cleans up when a subscriber's `Task` is cancelled:
+
+```swift
+@MainActor @Observable
+class SettingsModel {
+    private(set) var current: Settings {
+        didSet {
+            for continuation in continuations.values {
+                continuation.yield(current)
+            }
+        }
+    }
+    private var continuations: [UUID: AsyncStream<Settings>.Continuation] = [:]
+
+    func observeChanges() -> AsyncStream<Settings> {
+        let id = UUID()
+        let (stream, continuation) = AsyncStream.makeStream(of: Settings.self)
+        continuations[id] = continuation
+        continuation.onTermination = { [weak self] _ in
+            self?.continuations.removeValue(forKey: id)
+        }
+        return stream
+    }
+
+    func apply(_ setting: Setting) {
+        current = current.applying(setting)
+    }
+}
+
+@MainActor @Observable
+class AppModel {
+    let settingsModel: SettingsModel
+    private let dataUseCase: FetchDataUseCase
+
+    init(settingsModel: SettingsModel, dataUseCase: FetchDataUseCase) {
+        self.settingsModel = settingsModel
+        self.dataUseCase = dataUseCase
+        Task { await observeSettingsModel() }
+    }
+
+    private func observeSettingsModel() async {
+        for await settings in settingsModel.observeChanges() {
+            for try await snapshot in dataUseCase.stream(settings: settings) {
+                state = .ready(snapshot)
+            }
+        }
+    }
+}
+```
+
+Views call `settingsModel.apply()` directly — the child model remains fully usable on its own. The parent subscribes at construction time without the child knowing who is listening.
 
 ## Model Lifecycle
 
@@ -279,11 +350,11 @@ Models self-initialize on `init`. This eliminates the need for views to trigger 
 
 ```swift
 @MainActor @Observable
-class ImportModel {
+class SettingsModel {
     var state: ModelState = .loading(prior: nil)
-    private let useCase: ImportStatusUseCase
+    private let useCase: SettingsStatusUseCase
 
-    init(useCase: ImportStatusUseCase) {
+    init(useCase: SettingsStatusUseCase) {
         self.useCase = useCase
         Task { await load() }
     }
@@ -291,27 +362,6 @@ class ImportModel {
     private func load() async {
         let snapshot = try? await useCase.fetchStatus()
         state = .ready(snapshot ?? .empty)
-    }
-}
-```
-
-**When child models affect parent state**, refresh the parent when the child changes:
-
-```swift
-@MainActor @Observable
-class AppModel {
-    var state: AppState = .loading
-    var integrationModel: IntegrationModel? {
-        didSet { Task { await refreshState() } }
-    }
-
-    init() {
-        Task { await refreshState() }
-    }
-
-    private func refreshState() async {
-        let status = await integrationModel?.fetchStatus()
-        state = .ready(AppSnapshot(integration: status))
     }
 }
 ```
@@ -350,9 +400,9 @@ struct MyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppView()
                 .environment(appModel)
-                .environment(appModel.integrationModel)
+                .environment(appModel.settingsModel)
         }
     }
 }
