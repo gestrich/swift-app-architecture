@@ -22,6 +22,7 @@ SwiftUI follows **Model-View (MV)** — not MVVM. Views connect directly to `@Ob
 | Environment injection, view-scoped models | Injecting models into views | [dependency-injection.md](dependency-injection.md) |
 | View state vs model state, selection ownership | Deciding what belongs in `@State` vs `@Observable` models | [view-state.md](view-state.md) |
 | `.id()` modifier for view reset | Resetting view state when dependencies change | [view-identity.md](view-identity.md) |
+| Heavyweight state, model scalability | Managing memory when entities carry large or streaming data | [model-scalability.md](model-scalability.md) |
 | Domain structs, prerequisite data | Creating data types or handling missing data in views | [data-models.md](data-models.md) |
 
 ## Source Documentation
