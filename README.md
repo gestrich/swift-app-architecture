@@ -13,7 +13,7 @@ A Claude Code plugin providing architectural guidance for Swift application deve
 
 2. Install the plugin:
    ```
-   claude plugin install swift-app-architecture@gestrich-swift-app-architecture --scope project
+   claude plugin install swift-app-architecture@gestrich-swift-app-architecture --scope user
    ```
    > **Note:** Use `--scope user` instead of `--scope project` to install system-wide for all projects.
 
@@ -44,7 +44,15 @@ The slash commands (e.g., `/swift-architecture`) may not appear in the terminal 
 
 ### Updating the plugin
 
-Asking Claude to update the plugin via the CLI does not appear to work — it will report success but won't actually pull the latest version. The most reliable way to update is to uninstall and reinstall the plugin through the Claude Code UI. The marketplace does not need to be re-added.
+To get the latest version, update the marketplace and then uninstall and reinstall the plugin:
+
+```
+claude plugin marketplace update gestrich-swift-app-architecture
+claude plugin uninstall swift-app-architecture@gestrich-swift-app-architecture
+claude plugin install swift-app-architecture@gestrich-swift-app-architecture --scope user
+```
+
+Asking Claude to update the plugin via the CLI does not appear to work — it will report success but won't actually pull the latest version. The most reliable way to update is to uninstall and reinstall as shown above, or through the Claude Code UI.
 
 ### Slash commands not accessible after installation
 
