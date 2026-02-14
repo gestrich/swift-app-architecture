@@ -14,22 +14,22 @@ Parent models hold child models as properties. Each model owns its slice of stat
 ```swift
 // ❌ BAD: Parent duplicates child state
 @MainActor @Observable
-final class ParentModel {
+final class AppModel {
     var state: State
     enum State {
-        case stopping(services: ServicesProgress)  // Duplicated from child!
+        case stopping(settings: SettingsProgress)  // Duplicated from child!
     }
 }
 
 // ✅ GOOD: Parent holds child model, accesses its state
 @MainActor @Observable
-final class ParentModel {
+final class AppModel {
     var state: State
-    let servicesModel: ServicesModel
+    let settingsModel: SettingsModel
     enum State {
         case idle
         case stoppingPrimary(PrimaryProgress)
-        case waitingForServices
+        case waitingForSettings
         case stopped
     }
 }
@@ -39,9 +39,9 @@ final class ParentModel {
 
 ```swift
 @MainActor @Observable
-final class ParentModel {
+final class AppModel {
     private(set) var state: State = .idle
-    let servicesModel: ServicesModel
+    let settingsModel: SettingsModel
 
     func stopAll() async throws {
         state = .stoppingPrimary(.init())
@@ -49,8 +49,8 @@ final class ParentModel {
             state = .stoppingPrimary(progress)
         }
 
-        state = .waitingForServices
-        try await servicesModel.stopAll()  // Call child model, not use case
+        state = .waitingForSettings
+        try await settingsModel.stopAll()  // Call child model, not use case
 
         state = .stopped
     }
@@ -62,13 +62,13 @@ final class ParentModel {
 **Views access child state through the child model:**
 
 ```swift
-struct ParentView: View {
-    @Bindable var model: ParentModel
+struct AppView: View {
+    @Bindable var model: AppModel
 
     var body: some View {
         switch model.state {
-        case .waitingForServices:
-            ServicesProgressView(model: model.servicesModel)
+        case .waitingForSettings:
+            SettingsProgressView(model: model.settingsModel)
         // ...
         }
     }
@@ -82,20 +82,20 @@ For features that require configuration (API credentials, tokens), prefer option
 ```swift
 @MainActor @Observable
 class AppModel {
-    var integrationModel: IntegrationModel?  // nil if not configured
+    var settingsModel: SettingsModel?  // nil if not configured
 
     init() {
-        if let config = try? IntegrationConfiguration.load() {
-            self.integrationModel = IntegrationModel(config: config)
+        if let config = try? SettingsConfiguration.load() {
+            self.settingsModel = SettingsModel(config: config)
         }
     }
 
-    func configure(_ config: IntegrationConfiguration) {
-        integrationModel = IntegrationModel(config: config)
+    func configure(_ config: SettingsConfiguration) {
+        settingsModel = SettingsModel(config: config)
     }
 
-    func clearIntegration() {
-        integrationModel = nil
+    func clearSettings() {
+        settingsModel = nil
     }
 }
 ```
@@ -103,14 +103,14 @@ class AppModel {
 **View conditional rendering:**
 
 ```swift
-struct ContentView: View {
+struct AppView: View {
     @State var appModel = AppModel()
 
     var body: some View {
-        if let integrationModel = appModel.integrationModel {
-            IntegrationView(model: integrationModel)
+        if let settingsModel = appModel.settingsModel {
+            SettingsView(model: settingsModel)
         } else {
-            ConfigureIntegrationPrompt()
+            ConfigureSettingsPrompt()
         }
     }
 }
@@ -120,8 +120,8 @@ struct ContentView: View {
 
 | Change | What Updates |
 |--------|--------------|
-| `appModel.integrationModel = newModel` | Parent view re-renders (model existence changed) |
-| `integrationModel.state = .loading` | Child view re-renders (internal state changed) |
+| `appModel.settingsModel = newModel` | Parent view re-renders (model existence changed) |
+| `settingsModel.state = .loading` | Child view re-renders (internal state changed) |
 
 ## Child-to-Parent State Propagation
 
@@ -200,11 +200,11 @@ Models self-initialize on `init`. This eliminates the need for views to trigger 
 
 ```swift
 @MainActor @Observable
-class ImportModel {
+class SettingsModel {
     var state: ModelState = .loading(prior: nil)
-    private let useCase: ImportStatusUseCase
+    private let useCase: SettingsStatusUseCase
 
-    init(useCase: ImportStatusUseCase) {
+    init(useCase: SettingsStatusUseCase) {
         self.useCase = useCase
         Task { await load() }
     }
