@@ -79,6 +79,43 @@ let name = user.displayName  // Let caller handle nil appropriately
 
 **Why**: Default values hide configuration decisions and make debugging harder. When something breaks, you want to know immediately that required data was missing, not discover later that a silent fallback caused unexpected behavior.
 
+## Propagate Errors — Don't Swallow Them
+
+Always propagate errors to callers rather than catching and ignoring them. The rare exception is when an error is truly benign and can be safely ignored, but this is unusual.
+
+```swift
+// Avoid — silently swallows the error
+func save(data: Data) {
+    do {
+        try storage.write(data)
+    } catch {
+        print("save failed")
+    }
+}
+
+// Prefer — let it propagate
+func save(data: Data) throws {
+    try storage.write(data)
+}
+```
+
+**At the app layer**, catch errors to set state the UI can display:
+
+```swift
+func save() {
+    Task {
+        do {
+            try await useCase.run(options: opts)
+            state = .ready(snapshot)
+        } catch {
+            state = .error(error, prior: state.snapshot)
+        }
+    }
+}
+```
+
+**Why**: Swallowed errors hide failures and make debugging nearly impossible. When an operation fails, the caller needs to know so they can respond — in most cases that means showing the user an error message. If a lower layer catches and discards an error, the UI has no way to communicate the failure.
+
 ## Quick Reference
 
 | Rule | Do | Don't |
@@ -88,6 +125,7 @@ let name = user.displayName  // Let caller handle nil appropriately
 | Type aliases | Use actual types directly | `typealias` or `@_exported import` |
 | Parameters | Require values explicitly | Default parameter values |
 | Missing data | Surface errors immediately | `?? "fallback"` silent defaults |
+| Error handling | Propagate with `throws`, catch at app layer | `catch { print(...) }` silently swallowing |
 
 ## Checklist
 
@@ -99,6 +137,8 @@ When writing or reviewing code:
 - [ ] No unnecessary default parameter values
 - [ ] No silent fallbacks masking missing data
 - [ ] Optional fallbacks are only for genuinely optional, non-error cases
+- [ ] Errors propagate via `throws` — no silent catch-and-ignore
+- [ ] Only the app layer (models/CLI) catches errors to display to the user
 
 ## Source Documentation
 

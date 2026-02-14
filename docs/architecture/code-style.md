@@ -82,7 +82,7 @@ let name = user.displayName  // Let caller handle nil appropriately
 
 ## Propagate Errors — Don't Swallow Them
 
-Always propagate errors to callers rather than catching and ignoring them. SDKs and use cases should mark methods `throws` and let errors bubble up. The only place errors should be caught is at the app layer (models and CLI commands), where they can be presented to the user.
+Always propagate errors to callers rather than catching and ignoring them. The rare exception is when an error is truly benign and can be safely ignored, but this is unusual.
 
 ```swift
 // Avoid — silently swallows the error
