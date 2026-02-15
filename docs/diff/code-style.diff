@@ -1,0 +1,120 @@
+--- docs/architecture/code-style.md	2026-02-15 11:32:27
++++ plugin/skills/swift-architecture/code-style.md	2026-02-15 11:35:21
+@@ -1,10 +1,10 @@
+-# Code Style
++# Code Style Conventions
+ 
+-Guidelines for consistent code organization across the project.
++Code style rules for consistent Swift code across the project. These apply to all layers (Apps, Features, Services, SDKs).
+ 
+-## Imports
++## Import Ordering
+ 
+-Order imports alphabetically:
++Order imports **alphabetically**:
+ 
+ ```swift
+ import APIClientSDK
+@@ -19,11 +19,11 @@
+ 
+ ```swift
+ struct MyService {
+-    // 1. Stored properties (most important - what the type holds)
++    // 1. Stored properties
+     private let client: APIClient
+     private let cache: Cache
+ 
+-    // 2. Initializer (how to create it)
++    // 2. Initializer
+     init(client: APIClient, cache: Cache) {
+         self.client = client
+         self.cache = cache
+@@ -44,19 +44,18 @@
+ }
+ ```
+ 
+-**Rationale**: Readers scanning a file want to quickly understand what a type holds and how to create it. Nested type definitions are implementation details that can live at the bottom.
++**Why this order**: Readers scanning a file want to quickly understand what a type holds and how to create it. Nested type definitions are implementation details that live at the bottom.
+ 
+ ## Avoid Type Aliases and Re-exports
+ 
+-Type aliases and re-exports are a code smell. They obscure the actual types being used and create indirection that makes code harder to follow.
++Type aliases and re-exports obscure actual types and create indirection.
+ 
+ ```swift
+ // Avoid
+ public typealias ClientResult = Result<Data, ClientError>
+ @_exported import APIClientSDK
+ 
+-// Prefer
+-// Use the actual types directly
++// Prefer — use the actual types directly
+ func fetch() -> Result<Data, ClientError>
+ ```
+ 
+@@ -64,21 +63,21 @@
+ 
+ ## Avoid Default and Fallback Values
+ 
+-Prefer requiring data explicitly rather than providing defaults or fallbacks. Missing values often represent errors that should surface immediately rather than being silently masked.
++Prefer requiring data explicitly. Missing values often represent errors that should surface immediately rather than being silently masked.
+ 
+ ```swift
+-// Avoid - masks missing data
++// Avoid — masks missing data
+ func configure(timeout: Int = 30, retries: Int = 3) { ... }
+ let name = user.displayName ?? "Unknown"
+ 
+-// Prefer - require what you need
++// Prefer — require what you need
+ func configure(timeout: Int, retries: Int) { ... }
+ let name = user.displayName  // Let caller handle nil appropriately
+ ```
+ 
+-**When fallbacks are appropriate**: Only use optionals with fallbacks when the value genuinely may be absent and that absence is expected behavior, not an error condition. Examples include user preferences that haven't been set yet or optional UI customizations.
++**When fallbacks are appropriate**: Only use optionals with fallbacks when the value genuinely may be absent and that absence is *expected behavior*, not an error condition. Examples: user preferences that haven't been set yet, optional UI customizations.
+ 
+-**Rationale**: Default values hide configuration decisions and make debugging harder. When something breaks, you want to know immediately that required data was missing, not discover later that a silent fallback caused unexpected behavior. APIs should require the data they need from the client.
++**Why**: Default values hide configuration decisions and make debugging harder. When something breaks, you want to know immediately that required data was missing, not discover later that a silent fallback caused unexpected behavior.
+ 
+ ## Propagate Errors — Don't Swallow Them
+ 
+@@ -103,7 +102,6 @@
+ **At the app layer**, catch errors to set state the UI can display:
+ 
+ ```swift
+-// Model catches at the boundary to show the user
+ func save() {
+     Task {
+         do {
+@@ -116,4 +114,29 @@
+ }
+ ```
+ 
+-**Rationale**: Swallowed errors hide failures and make debugging nearly impossible. When an operation fails, the caller needs to know so they can respond — in most cases that means showing the user an error message. If a lower layer catches and discards an error, the UI has no way to communicate the failure.
++**Why**: Swallowed errors hide failures and make debugging nearly impossible. When an operation fails, the caller needs to know so they can respond — in most cases that means showing the user an error message. If a lower layer catches and discards an error, the UI has no way to communicate the failure.
++
++## Quick Reference
++
++| Rule | Do | Don't |
++|------|-----|-------|
++| Imports | Alphabetical order | Random or grouped |
++| File structure | Properties → init → computed → methods → nested types | Mixed ordering |
++| Type aliases | Use actual types directly | `typealias` or `@_exported import` |
++| Parameters | Require values explicitly | Default parameter values |
++| Missing data | Surface errors immediately | `?? "fallback"` silent defaults |
++| Error handling | Propagate with `throws`, catch at app layer | `catch { print(...) }` silently swallowing |
++
++## Checklist
++
++When writing or reviewing code:
++
++- [ ] Imports are alphabetically ordered
++- [ ] File follows the property → init → computed → method → nested type order
++- [ ] No type aliases or re-exports
++- [ ] No unnecessary default parameter values
++- [ ] No silent fallbacks masking missing data
++- [ ] Optional fallbacks are only for genuinely optional, non-error cases
++- [ ] Errors propagate via `throws` — no silent catch-and-ignore
++- [ ] Only the app layer (models/CLI) catches errors to display to the user
++

@@ -191,8 +191,123 @@ In the **Services layer**: auth tokens → `AuthService/`, file paths → `Stora
 - Otherwise: extend the existing module in the appropriate layer
 - Always match the project's existing implementation strategy (separate packages, targets in one package, or folders)
 
-## Source Documentation
 
-- **[Layers.md](../../../docs/architecture/Layers.md)** — Detailed layer descriptions and rules
-- **[Dependencies.md](../../../docs/architecture/Dependencies.md)** — Dependency rules and boundaries
-- **[QuickReference.md](../../../docs/architecture/QuickReference.md)** — Quick decision guides
+## Implementation Strategies
+
+The four-layer architecture is a logical structure. How you implement it depends on codebase size and existing conventions. **Match the style already used in the app you're working on.** If starting fresh and unsure, ask.
+
+### Strategy 1: Targets in a Single Package
+
+Each layer module is a **target** within one `Package.swift`. Parent folders (`features/`, `sdks/`, etc.) group targets by layer. Most common approach.
+
+```
+MyApp/
+├── Package.swift              # All targets defined here
+└── Sources/
+    ├── apps/
+    │   ├── MyMacApp/          # target: MyMacApp
+    │   └── MyCLIApp/          # target: MyCLIApp
+    ├── features/
+    │   ├── ImportFeature/     # target: ImportFeature
+    │   └── ExportFeature/     # target: ExportFeature
+    ├── services/
+    │   └── CoreService/       # target: CoreService
+    └── sdks/
+        ├── APIClientSDK/      # target: APIClientSDK
+        └── Uniflow/           # target: Uniflow
+```
+
+Dependencies declared between targets:
+```swift
+.target(name: "ImportFeature", dependencies: ["CoreService", "APIClientSDK", "Uniflow"]),
+.target(name: "MyMacApp", dependencies: ["ImportFeature", "ExportFeature", "CoreService"]),
+```
+
+### Strategy 2: Separate Swift Packages
+
+Each module has its own `Package.swift`. Common in large or multi-team codebases.
+
+### Strategy 3: Folders Only
+
+Layers are organizational folders within a single target. No separate targets or packages — layer boundaries enforced by convention only. Suitable for small apps or prototypes.
+
+### Choosing a Strategy
+
+| Strategy | When to use | Boundary enforcement |
+|----------|------------|---------------------|
+| Targets in a single package | Most projects — good balance of isolation and simplicity | Compile-time (import visibility) |
+| Separate Swift packages | Large/multi-team codebases needing independent builds | Compile-time + independent versioning |
+| Folders only | Small apps, prototypes, early-stage projects | Convention only |
+
+## Source Code Structure
+
+Regardless of implementation strategy, code is organized by architectural layer:
+
+```
+Sources/
+├── apps/                     # Entry points
+│   ├── MyCLIApp/             # CLI tool
+│   ├── MyServerApp/          # Server entry point
+│   └── MyMacApp/             # Mac app (@Observable models, SwiftUI views)
+├── features/                 # Feature modules (use case + service combined)
+│   ├── ImportFeature/
+│   │   ├── usecases/         # ImportUseCase, ValidateUseCase, etc.
+│   │   └── services/         # Models, config
+│   ├── ExportFeature/
+│   └── SyncFeature/
+├── services/                 # Shared service modules
+│   ├── CoreService/          # Core models and types
+│   ├── AuthService/          # Auth configuration and tokens
+│   └── StorageService/       # Local file storage service
+└── sdks/                     # Low-level SDK modules
+    ├── APIClientSDK/         # REST API wrapper
+    ├── CLISDK/               # CLI utilities (process execution, streams)
+    ├── GitSDK/               # Git operations
+    ├── FileSystemSDK/        # File system operations
+    ├── DatabaseSDK/          # Database utilities
+    └── Uniflow/              # Use case protocol definitions
+```
+
+## Module Naming
+
+Modules use PascalCase names following the `<Name><Layer>` convention:
+
+| Target | Folder | Layer |
+|--------|--------|-------|
+| `MyMacApp` | apps | App |
+| `MyCLIApp` | apps | App |
+| `ImportFeature` | features | Feature |
+| `ExportFeature` | features | Feature |
+| `CoreService` | services | Service |
+| `AuthService` | services | Service |
+| `APIClientSDK` | sdks | SDK |
+| `GitSDK` | sdks | SDK |
+| `Uniflow` | sdks | SDK |
+
+## Use Case Protocols (Uniflow)
+
+The `Uniflow` SDK defines two protocols for use case execution:
+
+**`UseCase`** — Single `run(options:)` method:
+```swift
+public protocol UseCase: Sendable {
+    associatedtype Options: Sendable = Void
+    associatedtype Result: Sendable
+    func run(options: Options) async throws -> Result
+}
+```
+
+**`StreamingUseCase`** — Extends `UseCase` with streaming state:
+```swift
+public protocol StreamingUseCase: UseCase {
+    associatedtype State: Sendable
+    func stream(options: Options) -> AsyncThrowingStream<State, Error>
+}
+```
+
+When `Result == State`, `StreamingUseCase` provides a default `run()` that consumes the stream and returns the last state.
+
+| Protocol | Use When | Example |
+|----------|----------|---------|
+| `UseCase` | Single result, no intermediate progress | Status checks, configuration loading |
+| `StreamingUseCase` | Multi-step with progress updates | Imports, builds, deployments |

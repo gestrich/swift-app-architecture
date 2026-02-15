@@ -61,7 +61,7 @@ This lets the reviewer see exactly what was dropped, reworded, or added in the s
 
 Start with the easiest (nearly identical pairs) and work toward the harder merges.
 
-## - [ ] Phase 1: Remove Principles.md
+## - [x] Phase 1: Remove Principles.md
 
 **Skills to read**: `swift-architecture`
 
@@ -70,7 +70,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/Principles.md`
 - Create PR with title: "Consolidate Principles.md into skill"
 
-## - [ ] Phase 2: Remove code-style.md
+## - [x] Phase 2: Remove code-style.md
 
 **Skills to read**: `swift-architecture`
 
@@ -79,7 +79,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/code-style.md`
 - Create PR
 
-## - [ ] Phase 3: Remove Examples.md
+## - [x] Phase 3: Remove Examples.md
 
 **Skills to read**: `swift-architecture`
 
@@ -88,7 +88,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/Examples.md`
 - Create PR
 
-## - [ ] Phase 4: Remove Configuration.md
+## - [x] Phase 4: Remove Configuration.md
 
 **Skills to read**: `swift-architecture`
 
@@ -97,7 +97,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/Configuration.md`
 - Create PR
 
-## - [ ] Phase 5: Remove FeatureStructure.md
+## - [x] Phase 5: Remove FeatureStructure.md
 
 **Skills to read**: `swift-architecture`
 
@@ -106,7 +106,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/FeatureStructure.md`
 - Create PR
 
-## - [ ] Phase 6: Remove alerts.md
+## - [x] Phase 6: Remove alerts.md
 
 **Skills to read**: `swift-swiftui`
 
@@ -115,7 +115,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/alerts.md`
 - Create PR
 
-## - [ ] Phase 7: Remove swift-ui.md
+## - [x] Phase 7: Remove swift-ui.md
 
 **Skills to read**: `swift-swiftui`
 
@@ -126,7 +126,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/swift-ui.md`
 - Create PR
 
-## - [ ] Phase 8: Remove Layers.md
+## - [x] Phase 8: Remove Layers.md
 
 **Skills to read**: `swift-architecture`
 
@@ -135,7 +135,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/Layers.md`
 - Create PR
 
-## - [ ] Phase 9: Remove Dependencies.md
+## - [x] Phase 9: Remove Dependencies.md
 
 **Skills to read**: `swift-architecture`
 
@@ -145,7 +145,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Delete `docs/architecture/Dependencies.md`
 - Create PR
 
-## - [ ] Phase 10: Remove remaining docs (ARCHITECTURE.md, QuickReference.md, documentation.md)
+## - [x] Phase 10: Remove remaining docs (ARCHITECTURE.md, QuickReference.md, documentation.md)
 
 **Skills to read**: `swift-architecture`
 
@@ -157,7 +157,7 @@ Start with the easiest (nearly identical pairs) and work toward the harder merge
 - Remove `docs/architecture/` directory
 - Create final PR
 
-## - [ ] Phase 11: Validation
+## - [x] Phase 11: Validation
 
 - Verify `docs/architecture/` directory is fully removed
 - Verify no broken cross-references in skill files

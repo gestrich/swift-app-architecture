@@ -26,6 +26,3 @@ SwiftUI follows **Model-View (MV)** — not MVVM. Views connect directly to `@Ob
 | Domain structs, prerequisite data | Creating data types or handling missing data in views | [data-models.md](data-models.md) |
 | Alerts | Using SwiftUI's `.alert` API | [alerts.md](alerts.md) |
 
-## Source Documentation
-
-- **[swift-ui.md](../../../docs/architecture/swift-ui.md)** — Full SwiftUI architecture guidelines

@@ -10,7 +10,7 @@ Guide for creating new feature modules in the 4-layer Swift architecture. Featur
 4. Add shared types to Services layer if needed
 5. Connect at the app layer (Mac model and/or CLI command)
 
-> **Important:** Match the implementation strategy already used in the project (separate packages, targets in one package, or folders). If unsure, ask. See [Layers.md — Implementation Strategies](../../../docs/architecture/Layers.md#implementation-strategies).
+> **Important:** Match the implementation strategy already used in the project (separate packages, targets in one package, or folders). If unsure, ask. See [Layers.md — Implementation Strategies](layers.md#implementation-strategies).
 
 ## Step 1: Create the Feature Module
 
@@ -331,8 +331,3 @@ Both app entry points depend on the same features — the declaration mechanism 
 - [ ] Feature-only types are in `features/MyFeature/services/`, shared types in Services
 - [ ] App-layer model and/or CLI command created to consume the use cases
 
-## Source Documentation
-
-- **[FeatureStructure.md](../../../docs/architecture/FeatureStructure.md)** — Feature module structure details
-- **[Examples.md](../../../docs/architecture/Examples.md)** — Reference implementation walkthrough
-- **[Layers.md](../../../docs/architecture/Layers.md)** — Detailed layer descriptions

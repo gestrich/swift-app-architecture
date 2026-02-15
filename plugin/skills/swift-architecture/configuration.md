@@ -44,7 +44,32 @@ let config = try configService.get(APIConfiguration.self, from: "api-service")
 }
 ```
 
-**Note**: All fields including `baseURL` are required for services that declare it.
+**Example** — `issue-tracker.json`:
+```json
+{
+  "baseURL": "https://your-company.atlassian.net",
+  "username": "your-email@company.com",
+  "apiToken": "your-api-token"
+}
+```
+
+**Example** — `analytics.json`:
+```json
+{
+  "username": "analytics-user",
+  "password": "analytics-password",
+  "baseURL": "http://analytics.your-company.com/api/"
+}
+```
+
+**Example** — `ai-service.json` (optional):
+```json
+{
+  "apiKey": "your-ai-service-api-key"
+}
+```
+
+**Note**: All fields including `baseURL` are required for services that declare it. Configuration directory is typically `~/.myapp/` or `~/Library/Application Support/MyApp/`.
 
 ## DataPathsService
 
@@ -192,6 +217,3 @@ When adding configuration to a feature:
 - [ ] Optional features use optional child models when config may be absent
 - [ ] Missing required config fails fast at startup
 
-## Source Documentation
-
-- **[Configuration.md](../../../docs/architecture/Configuration.md)** — Full configuration architecture reference

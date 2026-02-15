@@ -1,0 +1,154 @@
+--- docs/architecture/alerts.md	2026-02-15 08:50:46
++++ plugin/skills/swift-swiftui/alerts.md	2026-02-15 11:36:21
+@@ -4,78 +4,55 @@
+ 
+ ## Basic Alert
+ 
+-The simplest alert uses a `Bool` binding to control visibility:
++Use a `Bool` binding to control visibility:
+ 
+ ```swift
+-struct SettingsView: View {
+-    @State private var isResetConfirmationPresented = false
++@State private var isResetConfirmationPresented = false
+ 
+-    var body: some View {
+-        Button("Reset") {
+-            isResetConfirmationPresented = true
+-        }
+-        .alert("Reset Settings?", isPresented: $isResetConfirmationPresented) {
+-            Button("Cancel", role: .cancel) {}
+-            Button("Reset", role: .destructive) {
+-                // perform reset
+-            }
+-        } message: {
+-            Text("This cannot be undone.")
+-        }
++Button("Reset") {
++    isResetConfirmationPresented = true
++}
++.alert("Reset Settings?", isPresented: $isResetConfirmationPresented) {
++    Button("Cancel", role: .cancel) {}
++    Button("Reset", role: .destructive) {
++        // perform reset
+     }
++} message: {
++    Text("This cannot be undone.")
+ }
+ ```
+ 
+-Name boolean state properties `is<Context>Presented` to follow SwiftUI's `isPresented` convention.
++Name boolean state `is<Context>Presented` to follow SwiftUI's `isPresented` convention.
+ 
+ ## Optional Data Driving an Alert
+ 
+-When an optional value should trigger the alert and be available inside the alert closures, use the `presenting:` parameter. This avoids force-unwrapping or `if let` inside the alert builder.
++Use the `presenting:` parameter when an optional value should trigger the alert and be available inside its closures. Create a computed `Binding<Bool>` that derives from the optional:
+ 
+-The `presenting:` overload requires `isPresented: Binding<Bool>`, so create a computed binding that derives its value from the optional:
+-
+ ```swift
+-struct SettingsView: View {
+-    @Environment(SettingsModel.self) private var model
+-    @State private var currentError: Error?
++@State private var currentError: Error?
+ 
+-    private var isErrorPresented: Binding<Bool> {
+-        Binding(
+-            get: { currentError != nil },
+-            set: { if !$0 { currentError = nil } }
+-        )
+-    }
+-
+-    var body: some View {
+-        content
+-            .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
+-                Button("OK") { currentError = nil }
+-            } message: { error in
+-                Text(error.localizedDescription)
+-            }
+-    }
++private var isErrorPresented: Binding<Bool> {
++    Binding(
++        get: { currentError != nil },
++        set: { if !$0 { currentError = nil } }
++    )
+ }
+-```
+ 
+-The setter clears the optional when SwiftUI dismisses the alert (`$0` is `false`), which keeps the state and presentation in sync.
+-
+-### Triggering the Alert
+-
+-Set the optional to a non-nil value at the call site:
+-
+-```swift
+-Button("Save") {
+-    do {
+-        try model.save(config)
+-    } catch {
+-        currentError = error
+-    }
++var body: some View {
++    content
++        .alert("Settings Error", isPresented: isErrorPresented, presenting: currentError) { _ in
++            Button("OK") { currentError = nil }
++        } message: { error in
++            Text(error.localizedDescription)
++        }
+ }
+ ```
+ 
++The setter clears the optional when SwiftUI dismisses the alert, keeping state and presentation in sync.
++
+ ### Multiple Optional Sources
+ 
+-When a view has several operations that each produce different optional data for alerts, use separate `@State` properties with distinct binding names:
++Use separate `@State` properties with distinct binding names:
+ 
+ ```swift
+ @State private var saveError: Error?
+@@ -87,17 +64,28 @@
+         set: { if !$0 { saveError = nil } }
+     )
+ }
++```
+ 
+-private var isDeleteErrorPresented: Binding<Bool> {
+-    Binding(
+-        get: { deleteError != nil },
+-        set: { if !$0 { deleteError = nil } }
+-    )
++## Key Rules
++
++- Alert-driving properties (`Bool` or optional) belong in `@State`, not in `@Observable` models
++- Name computed bindings `is<Context>Presented`
++- Use `presenting:` to pass optional data into alert closures instead of unwrapping
++
++### Triggering the Alert
++
++Set the optional to a non-nil value at the call site:
++
++```swift
++Button("Save") {
++    do {
++        try model.save(config)
++    } catch {
++        currentError = error
++    }
+ }
+ ```
+ 
+-This allows each alert to have its own title and message while sharing the same binding pattern.
+-
+ ### Naming Convention
+ 
+ | Good | Avoid |
+@@ -107,7 +95,3 @@
+ | `isItemToDeletePresented` | `showDeleteItem` |
+ 
+ Follow SwiftUI's `is___Presented` pattern for all computed bindings.
+-
+-## Alert State is View State
+-
+-Alert-driving properties — whether `Bool` or optional — belong in `@State`, not in `@Observable` models. Alert visibility is presentation concern, the same category as selection or sheet visibility.

@@ -1,0 +1,684 @@
+--- docs/architecture/Layers.md	2026-02-15 08:50:46
++++ plugin/skills/swift-architecture/layers.md	2026-02-15 11:35:54
+@@ -1,390 +1,247 @@
+-# Architecture Layers
++# Layer Placement
+ 
+-A strict **layered architecture** maintains separation of concerns, code reusability, and testability. The application is organized into four distinct layers:
++Determines the correct architectural layer (Apps, Features, Services, SDKs) for new or existing code. Use the decision flowcharts, placement table, and dependency rules below to guide placement decisions.
+ 
+-1. **Apps Layer** — Entry points, `@Observable` models, platform-specific I/O
+-2. **Features Layer** — Use case orchestration via `UseCase` / `StreamingUseCase` protocols
+-3. **Services Layer** — Shared models, configuration, and stateful utilities
+-4. **SDKs Layer** — Stateless, reusable building blocks (`Sendable` structs)
++## Decision Flowchart: Where Does This Code Belong?
+ 
+-## Implementation Strategies
+-
+-The four-layer architecture is a logical structure. How you implement it in your project depends on the codebase size and existing conventions. **Match the style already used in the app you're working on.** If you're starting fresh and unsure which to pick, ask.
+-
+-### Strategy 1: Targets in a Single Package
+-
+-Each layer module is a **target** within one `Package.swift`. Parent folders (`features/`, `sdks/`, etc.) group targets by layer. This is the most common approach and works well for most projects.
+-
+ ```
+-MyApp/
+-├── Package.swift              # All targets defined here
+-└── Sources/
+-    ├── apps/
+-    │   ├── MyMacApp/          # target: MyMacApp
+-    │   └── MyCLIApp/          # target: MyCLIApp
+-    ├── features/
+-    │   ├── ImportFeature/     # target: ImportFeature
+-    │   └── ExportFeature/     # target: ExportFeature
+-    ├── services/
+-    │   └── CoreService/       # target: CoreService
+-    └── sdks/
+-        ├── APIClientSDK/      # target: APIClientSDK
+-        └── Uniflow/           # target: Uniflow
++Start: I need to add new code
++    ↓
++Is it UI, @Observable, or platform-specific I/O?
++    ├─ Yes → Apps Layer
++    │         (models, views, CLI commands, server handlers)
++    │
++    └─ No → Does it orchestrate multiple steps into a workflow?
++              ├─ Yes → Features Layer
++              │         (UseCase / StreamingUseCase)
++              │
++              └─ No → Is it a shared model, config, or stateful utility?
++                        ├─ Yes → Services Layer
++                        │
++                        └─ No → Is it a single operation (one API call, one command)?
++                                  ├─ Yes → SDKs Layer
++                                  │         (stateless Sendable struct)
++                                  └─ No → Services Layer (shared utility)
+ ```
+ 
+-Dependencies are declared between targets in `Package.swift`:
+-```swift
+-.target(name: "ImportFeature", dependencies: ["CoreService", "APIClientSDK", "Uniflow"]),
+-.target(name: "MyMacApp", dependencies: ["ImportFeature", "ExportFeature", "CoreService"]),
+-```
++## Decision Flowchart: Feature vs Service
+ 
+-### Strategy 2: Separate Swift Packages
+-
+-Each layer module is its own **Swift package** with its own `Package.swift`. Common in large or multi-team codebases where independent versioning and build isolation matter.
+-
+ ```
+-MyApp/
+-├── apps/
+-│   ├── MyMacApp/
+-│   │   └── Package.swift      # depends on ../features/ImportFeature, etc.
+-│   └── MyCLIApp/
+-│       └── Package.swift
+-├── features/
+-│   ├── ImportFeature/
+-│   │   └── Package.swift      # depends on ../sdks/Uniflow, ../services/CoreService
+-│   └── ExportFeature/
+-│       └── Package.swift
+-├── services/
+-│   └── CoreService/
+-│       └── Package.swift
+-└── sdks/
+-    ├── APIClientSDK/
+-    │   └── Package.swift
+-    └── Uniflow/
+-        └── Package.swift
++I'm adding new business logic
++    ↓
++Does it orchestrate multiple steps into a workflow?
++    ├─ Yes → Feature Layer (use case)
++    │         (e.g., ImportUseCase, SyncUseCase)
++    │
++    └─ No → Is it a shared model, config, or utility?
++              ├─ Yes → Services Layer
++              │         (e.g., CoreService, AuthService)
++              │
++              └─ Not sure → Does it coordinate SDK calls?
++                            ├─ Yes → Feature Layer (use case)
++                            └─ No → Services Layer
+ ```
+ 
+-### Strategy 3: Folders Only
++## Decision Flowchart: Service vs SDK
+ 
+-Layers are **organizational folders** within a single target or Xcode project. There are no separate targets or packages per module — the layer structure is a naming convention. Suitable for small apps or early-stage projects.
+-
+ ```
+-MyApp/
+-├── Package.swift              # Single target (or Xcode project)
+-└── Sources/
+-    └── MyApp/
+-        ├── apps/
+-        │   └── MyMacApp/
+-        ├── features/
+-        │   └── ImportFeature/
+-        ├── services/
+-        │   └── CoreService/
+-        └── sdks/
+-            └── GitSDK/
++I'm adding functionality
++    ↓
++Is this ONE command or API call?
++    ├─ Yes → SDK Layer
++    │         (e.g., GitClient, APIClient)
++    │
++    └─ No → Is it a shared model or config used by multiple features?
++              ├─ Yes → Services Layer
++              │         (e.g., CoreService models, AuthService)
++              │
++              └─ Not sure → Could any project reuse this as-is?
++                            ├─ Yes → SDK Layer
++                            └─ No → Services Layer
+ ```
+ 
+-With this approach the build system does not enforce layer boundaries — the folder structure and naming conventions are the guardrails.
++## Where Do Data Models Go?
+ 
+-### Choosing a Strategy
++- **Used by multiple features?** → `services/CoreService/Models/` (Services layer)
++- **Only used by one feature?** → `features/MyFeature/services/` (Features layer)
++- **Only used by the UI?** → `apps/MyMacApp/` (Apps layer)
+ 
+-| Strategy | When to use | Boundary enforcement |
+-|----------|------------|---------------------|
+-| Targets in a single package | Most projects — good balance of isolation and simplicity | Compile-time (import visibility) |
+-| Separate Swift packages | Large/multi-team codebases needing independent builds | Compile-time + independent versioning |
+-| Folders only | Small apps, prototypes, early-stage projects | Convention only |
++## Dependency Rules
+ 
+-> **Rule of thumb:** Follow the convention already established in the codebase. If starting a new project and unsure, targets in a single package is a good default.
++Dependencies flow **downward only**:
+ 
+-## Layer Overview
++```
++Apps → Features → Services → SDKs
++```
+ 
++**Allowed:**
+ ```
+-┌─────────────────────────────────────────────────────────────────┐
+-│  APPS LAYER (Entry Points)                                      │
+-│                                                                 │
+-│  apps/MyMacApp/          - macOS SwiftUI application            │
+-│  │   @Observable models, SwiftUI views                          │
+-│  │   └── Depends on: ImportFeature, CoreService, ...            │
+-│  │                                                              │
+-│  apps/MyCLIApp/          - Command-line interface tool           │
+-│  │   AsyncParsableCommand structs                               │
+-│  │   └── Depends on: ImportFeature, ExportFeature, ...          │
+-│  │                                                              │
+-│  apps/MyServerApp/       - Server entry point                   │
+-│      └── Depends on: SyncFeature, CoreService, ...              │
+-└─────────────────────────────────────────────────────────────────┘
+-                              │
+-                              ▼
+-┌─────────────────────────────────────────────────────────────────┐
+-│  FEATURES LAYER (Use Cases)                                     │
+-│                                                                 │
+-│  features/ImportFeature/     - Import use cases                 │
+-│  │   ├── usecases/           - UseCase / StreamingUseCase       │
+-│  │   └── services/           - Feature-specific models, config  │
+-│  │   └── Depends on: CoreService, APIClientSDK, ...             │
+-│  │                                                              │
+-│  features/ExportFeature/     - Export use cases                  │
+-│  │   └── Depends on: CoreService, FileSystemSDK                 │
+-│  │                                                              │
+-│  features/SyncFeature/       - Sync use cases                   │
+-│      └── Depends on: CoreService, APIClientSDK, GitSDK          │
+-└─────────────────────────────────────────────────────────────────┘
+-                              │
+-                              ▼
+-┌─────────────────────────────────────────────────────────────────┐
+-│  SERVICES LAYER (Shared Models & Utilities)                     │
+-│                                                                 │
+-│  services/CoreService/       - Core models and types            │
+-│  │   └── Depends on: GitSDK, CLISDK                             │
+-│  │                                                              │
+-│  services/AuthService/       - Auth configuration and tokens    │
+-│  │   └── Depends on: APIClientSDK                               │
+-│  │                                                              │
+-│  services/StorageService/    - Local file storage service        │
+-│      └── Depends on: CLISDK                                     │
+-└─────────────────────────────────────────────────────────────────┘
+-                              │
+-                              ▼
+-┌─────────────────────────────────────────────────────────────────┐
+-│  SDKs LAYER (Stateless, Reusable)                               │
+-│                                                                 │
+-│  sdks/APIClientSDK/      - REST API wrapper                     │
+-│  sdks/GitSDK/            - Git operations                       │
+-│  sdks/CLISDK/            - Process execution, streams           │
+-│  sdks/FileSystemSDK/     - File system operations               │
+-│  sdks/Uniflow/           - Use case protocol definitions        │
+-│  sdks/DatabaseSDK/       - Database utilities                   │
+-└─────────────────────────────────────────────────────────────────┘
++Apps     → Features, Services, SDKs
++Features → Services, SDKs
++Services → Other Services, SDKs
++SDKs     → Other SDKs, external packages only
+ ```
+ 
+-## 1. Apps Layer (Entry Points)
++**Forbidden (never depend upward):**
++```
++SDKs     → Services, Features, Apps   ❌
++Services → Features, Apps              ❌
++Features → Apps                        ❌
++Features → Other Features              ❌
++```
+ 
+-**Purpose:** Platform-specific entry points that handle I/O and own `@Observable` state.
++If two features need shared logic, extract to a **Service** or **SDK**. Compose features at the **App layer** (model composition or composite CLI commands).
+ 
+-**Responsibilities:**
++## Layer Characteristics
+ 
+-- Executable targets (macOS apps, CLI tools, server handlers)
+-- `@Observable` models live here (for SwiftUI apps) — not in Services or Features
+-- CLI commands are app-layer constructs, parallel to Mac models
+-- Minimal business logic; focus on I/O and calling features
++### Apps Layer
++- Platform-specific entry points (macOS apps, CLI tools, servers)
++- **Only layer** with `@Observable` models
++- Minimal business logic — calls features and displays results
++- CLI commands are app-layer constructs parallel to Mac models
+ 
+-**Rules:**
++### Features Layer
++- Use cases conforming to `UseCase` / `StreamingUseCase` protocols
++- **Multi-step orchestration** across SDKs and services
++- Return `AsyncThrowingStream` for progress reporting
++- Feature-specific models in `services/` subdirectory
++- No `@Observable`, no UI, no CLI code
+ 
+-- ✅ Own `@Observable` models that consume use case streams
+-- ✅ Handle platform-specific I/O (SwiftUI views, terminal output, server encoding)
+-- ✅ Call features (use cases) and display results
+-- ❌ NO business logic or multi-step orchestration
+-- ❌ NO direct SDK calls for business operations (use Features instead)
++### Services Layer
++- Shared models and types used across features
++- Configuration persistence (auth tokens, user settings)
++- Stateful utilities that **don't** orchestrate multi-step operations
++- No orchestration (that belongs in Features)
+ 
+-### Model Architecture (Mac Apps)
++### SDKs Layer
++- **Stateless** `Sendable` structs — no internal state management
++- Each method wraps a **single operation** (one CLI command, one API call)
++- Generic, reusable — no business logic, no app-specific concepts
++- Could be extracted to a standalone package for reuse across projects
+ 
+-`@Observable` models consume use case streams and update state for the UI. Key patterns:
++## Good vs Bad Boundaries
+ 
+-- **Model-View (MV)** — views connect directly to observable models, no dedicated ViewModels
+-- **Enum-based state** — represent model state as enums, not multiple independent properties
+-- **Minimal state mapping** — receive use case state and assign directly; complex mapping signals the use case should return better-structured state
+-- **State ownership** — use cases own state data, models own state transitions
+-- **Model composition** — parent models hold child models; models call models for cross-domain operations
+-- **Self-initializing lifecycle** — models load data on `init`, not on view appear
+-- **Optional child models** — prefer `nil` over "unconfigured" state for features requiring configuration
++### Good: SDK is Generic
+ 
+-See **[swift-ui.md](swift-ui.md)** for detailed patterns, code examples, and guidelines.
+-
+-### CLI Commands
+-
+-CLI commands use use cases directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget.
+-
+-**CLI vs Mac App Composition Approaches:**
+-
+-| App | Approach | Example |
+-|-----|----------|---------|
+-| Mac App | Model composition | `ParentModel.startAll()` → `childModel.start()` |
+-| CLI | Use case composition | `CompositeUseCase` → `ChildUseCase` + `AnotherUseCase` |
+-
+-Both approaches share the same leaf use cases, ensuring consistent behavior. The difference is in orchestration:
+-- **Mac app** routes through models so each model can update its observable state
+-- **CLI** uses composite use cases directly since there's no observable state to track
+-
+ ```swift
+-struct ImportCommand: AsyncParsableCommand {
+-    func run() async throws {
+-        // Use stream() when you want progress output
+-        for try await state in useCase.stream(options: opts) {
+-            printProgress(state)
+-        }
+-    }
++// SDK — stateless, single operation, generic types
++public struct GitClient: Sendable {
++    public func createWorktree(path: String, branch: String) throws { }
+ }
+ 
+-struct StatusCommand: AsyncParsableCommand {
+-    func run() async throws {
+-        // Use run() when you only care about the final result
+-        let result = try await useCase.run(options: opts)
+-        print(result)
++// Feature — adds business context and orchestration
++public struct PrepareTaskUseCase: UseCase {
++    private let gitClient: GitClient
++
++    public func run(options: TaskConfig) async throws -> TaskResult {
++        let branchName = "task/\(options.name)"
++        try gitClient.createWorktree(path: options.path, branch: branchName)
++        return TaskResult(branch: branchName)
+     }
+ }
+ ```
+ 
+-## 2. Features Layer (Use Cases)
++### Bad: SDK Knows About Business Concepts
+ 
+-**Purpose:** Multi-step orchestration operations. Features combine use case logic and feature-specific service code in one target.
++```swift
++// ❌ SDK shouldn't know about app-specific types
++public struct GitClient: Sendable {
++    public func createWorktreeForTask(task: TaskConfig) throws { }
++}
++```
+ 
+-**Responsibilities:**
++### Good: Service Holds Shared Models
+ 
+-- Use cases are structs conforming to `UseCase` or `StreamingUseCase` protocols (from `Uniflow`)
+-- Coordinate multiple SDK clients and services
+-- App-specific business logic and orchestration
+-- **Not** `@Observable` — that belongs in the Apps layer
+-- Depend on Services and SDKs, but never vice versa
+-
+-**Rules:**
+-
+-- ✅ Implement `UseCase` or `StreamingUseCase` protocols
+-- ✅ Orchestrate multi-step operations across SDKs and services
+-- ✅ Return `AsyncThrowingStream` for progress reporting
+-- ✅ Contain feature-specific models and configuration
+-- ❌ NO `@Observable` — that belongs in Apps
+-- ❌ NO direct UI or CLI code
+-
+-### Features for Orchestration
++```swift
++// Service — shared configuration, no orchestration
++public struct GitConfig {
++    public let defaultRemote: String
++    public let mainBranch: String
++}
++```
+ 
+-Multi-step operations live in features as `StreamingUseCase` conformers.
++### Bad: Service Orchestrates Multi-Step Workflows
+ 
+ ```swift
+-import Uniflow
+-
+-public struct ImportUseCase: StreamingUseCase {
+-    public typealias State = UseCaseState
+-    public typealias Result = State
+-
+-    public struct Options: Sendable {
+-        public let source: DataSource
+-        public let validateFirst: Bool
++// ❌ Multi-step orchestration belongs in a Feature (use case)
++public struct GitService {
++    func prepareBranchAndPush(name: String) async throws {
++        try gitClient.checkout(branch: "main")
++        try gitClient.checkout(branch: "feature/\(name)")
++        try gitClient.push(branch: "feature/\(name)")
+     }
+-
+-    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
+-        AsyncThrowingStream { continuation in
+-            Task {
+-                continuation.yield(.importing(.starting))
+-                for try await progress in apiClient.importStream(options: opts) {
+-                    continuation.yield(.importing(.progress(progress)))
+-                }
+-                continuation.yield(.completed(snapshot))
+-                continuation.finish()
+-            }
+-        }
+-    }
+ }
+ ```
+ 
+-## 3. Services Layer (Shared Models & Utilities)
++## Common Questions
+ 
+-**Purpose:** Shared models, configuration, and stateful utilities used across features.
++**Can I call an SDK directly from an App?**
++For simple cases, yes:
++- Better: App → Feature (use case) → SDK
++- Acceptable: App → SDK (for trivial single-call operations)
++- Avoid: Complex SDK orchestration in Apps (use a Feature instead)
+ 
+-**Responsibilities:**
++**Where does configuration go?**
++In the **Services layer**: auth tokens → `AuthService/`, file paths → `StorageService/`, app settings → `CoreService/`. See [configuration.md](configuration.md) for implementation details.
+ 
+-- App-specific models and types
+-- Configuration persistence (auth tokens, user settings)
+-- Stateful utilities that don't orchestrate multi-step operations
+-- Provide types and utilities consumed by features
++**When should I create a new module vs extend an existing one?**
++- New SDK: when wrapping a new external tool/service with no overlap
++- New Feature: when the operations are a distinct domain (not related to existing features)
++- New Service: when introducing shared types/config that don't fit existing services
++- Otherwise: extend the existing module in the appropriate layer
++- Always match the project's existing implementation strategy (separate packages, targets in one package, or folders)
+ 
+-**Rules:**
+ 
+-- ✅ Define shared models and types
+-- ✅ Manage configuration and persistence
+-- ✅ Provide stateful utilities
+-- ❌ NO multi-step orchestration (use Features instead)
+-- ❌ NO UI code or `@Observable`
+-- ❌ NO CLI argument parsing
++## Implementation Strategies
+ 
+-## 4. SDKs Layer (Stateless, Reusable)
++The four-layer architecture is a logical structure. How you implement it depends on codebase size and existing conventions. **Match the style already used in the app you're working on.** If starting fresh and unsure, ask.
+ 
+-**Purpose:** Low-level, reusable building blocks with no app-specific logic.
++### Strategy 1: Targets in a Single Package
+ 
+-**Responsibilities:**
++Each layer module is a **target** within one `Package.swift`. Parent folders (`features/`, `sdks/`, etc.) group targets by layer. Most common approach.
+ 
+-- Wrap external tools and services
+-- **Stateless** — no internal state management
+-- Operations return `AsyncThrowingStream` for progress or values for one-shot queries
+-- Can be extracted to separate packages
+-- Use `Sendable` structs for clients — no mutable state means no need for actor isolation
+-
+-**Rules:**
+-
+-- ✅ Stateless and reusable
+-- ✅ Generic operations only
+-- ✅ `Sendable` struct clients
+-- ❌ NO business logic
+-- ❌ NO application state
+-- ❌ NO knowledge of app-specific concepts
+-
+-**Example:**
+-```swift
+-// Good: Generic SDK operation
+-public struct GitClient: Sendable {
+-    public func createWorktree(path: String, branch: String) throws { ... }
+-    public func commitStream(message: String) -> AsyncThrowingStream<GitProgress, Error> { ... }
+-}
+-
+-// Bad: SDK knows about business concepts
+-public struct GitClient: Sendable {
+-    public func createWorktreeForImport(task: ImportConfig) throws {
+-        // ❌ SDK shouldn't know about ImportConfig
+-    }
+-}
+ ```
+-
+-### Stateless SDKs
+-
+-SDK clients don't maintain internal state. Each method call is independent.
+-
+-```swift
+-public struct APIClient: Sendable {
+-    private let httpClient: HTTPClient
+-
+-    // Returns stream — no internal state tracking
+-    public func importStream(options: ImportOptions) -> AsyncThrowingStream<ImportProgress, Error>
+-
+-    // Returns value directly
+-    public func fetchStatus(id: String) async throws -> StatusResponse
+-}
++MyApp/
++├── Package.swift              # All targets defined here
++└── Sources/
++    ├── apps/
++    │   ├── MyMacApp/          # target: MyMacApp
++    │   └── MyCLIApp/          # target: MyCLIApp
++    ├── features/
++    │   ├── ImportFeature/     # target: ImportFeature
++    │   └── ExportFeature/     # target: ExportFeature
++    ├── services/
++    │   └── CoreService/       # target: CoreService
++    └── sdks/
++        ├── APIClientSDK/      # target: APIClientSDK
++        └── Uniflow/           # target: Uniflow
+ ```
+ 
+-### Use Case Protocols (Uniflow)
+-
+-The `Uniflow` SDK defines two protocols for use case execution:
+-
+-**`UseCase`** — Base protocol with a single `run(options:)` method:
+-
++Dependencies declared between targets:
+ ```swift
+-public protocol UseCase: Sendable {
+-    associatedtype Options: Sendable = Void
+-    associatedtype Result: Sendable
+-
+-    func run(options: Options) async throws -> Result
+-}
++.target(name: "ImportFeature", dependencies: ["CoreService", "APIClientSDK", "Uniflow"]),
++.target(name: "MyMacApp", dependencies: ["ImportFeature", "ExportFeature", "CoreService"]),
+ ```
+ 
+-**`StreamingUseCase`** — Extends `UseCase` with streaming state updates:
++### Strategy 2: Separate Swift Packages
+ 
+-```swift
+-public protocol StreamingUseCase: UseCase {
+-    associatedtype State: Sendable
++Each module has its own `Package.swift`. Common in large or multi-team codebases.
+ 
+-    func stream(options: Options) -> AsyncThrowingStream<State, Error>
+-}
+-```
++### Strategy 3: Folders Only
+ 
+-When `Result == State`, `StreamingUseCase` provides a default `run()` implementation that consumes the stream and returns the last state.
++Layers are organizational folders within a single target. No separate targets or packages — layer boundaries enforced by convention only. Suitable for small apps or prototypes.
+ 
+-**When to use each:**
++### Choosing a Strategy
+ 
+-| Protocol | Use When | Example |
+-|----------|----------|---------|
+-| `UseCase` | Single result, no intermediate progress | Status checks, configuration loading |
+-| `StreamingUseCase` | Multi-step with progress updates | Imports, builds, deployments |
++| Strategy | When to use | Boundary enforcement |
++|----------|------------|---------------------|
++| Targets in a single package | Most projects — good balance of isolation and simplicity | Compile-time (import visibility) |
++| Separate Swift packages | Large/multi-team codebases needing independent builds | Compile-time + independent versioning |
++| Folders only | Small apps, prototypes, early-stage projects | Convention only |
+ 
+ ## Source Code Structure
+ 
+-Regardless of implementation strategy, code is organized by architectural layer in folders:
++Regardless of implementation strategy, code is organized by architectural layer:
+ 
+ ```
+ Sources/
+@@ -393,11 +250,11 @@
+ │   ├── MyServerApp/          # Server entry point
+ │   └── MyMacApp/             # Mac app (@Observable models, SwiftUI views)
+ ├── features/                 # Feature modules (use case + service combined)
+-│   ├── ImportFeature/        # Import feature
++│   ├── ImportFeature/
+ │   │   ├── usecases/         # ImportUseCase, ValidateUseCase, etc.
+ │   │   └── services/         # Models, config
+-│   ├── ExportFeature/        # Export feature
+-│   └── SyncFeature/          # Sync feature
++│   ├── ExportFeature/
++│   └── SyncFeature/
+ ├── services/                 # Shared service modules
+ │   ├── CoreService/          # Core models and types
+ │   ├── AuthService/          # Auth configuration and tokens
+@@ -413,68 +270,44 @@
+ 
+ ## Module Naming
+ 
+-Modules (whether targets, packages, or folders) use PascalCase names following the `<Name><Layer>` convention:
++Modules use PascalCase names following the `<Name><Layer>` convention:
+ 
+-| Folder | Layer | Position |
+-|--------|-------|----------|
+-| `apps/` | App | Top (entry points) |
+-| `features/` | Feature | Second |
+-| `services/` | Service | Third |
+-| `sdks/` | SDK | Bottom (reusable) |
++| Target | Folder | Layer |
++|--------|--------|-------|
++| `MyMacApp` | apps | App |
++| `MyCLIApp` | apps | App |
++| `ImportFeature` | features | Feature |
++| `ExportFeature` | features | Feature |
++| `CoreService` | services | Service |
++| `AuthService` | services | Service |
++| `APIClientSDK` | sdks | SDK |
++| `GitSDK` | sdks | SDK |
++| `Uniflow` | sdks | SDK |
+ 
+-**Examples:**
++## Use Case Protocols (Uniflow)
+ 
+-| Target | Folder | Layer | Description |
+-|--------|--------|-------|-------------|
+-| `MyMacApp` | apps | App | macOS application |
+-| `MyCLIApp` | apps | App | CLI tool |
+-| `MyServerApp` | apps | App | Server entry point |
+-| `ImportFeature` | features | Feature | Import use cases |
+-| `ExportFeature` | features | Feature | Export use cases |
+-| `SyncFeature` | features | Feature | Sync use cases |
+-| `CoreService` | services | Service | Core models and types |
+-| `AuthService` | services | Service | Auth configuration |
+-| `StorageService` | services | Service | Local storage |
+-| `APIClientSDK` | sdks | SDK | API client utilities |
+-| `CLISDK` | sdks | SDK | CLI utilities |
+-| `GitSDK` | sdks | SDK | Git operations |
++The `Uniflow` SDK defines two protocols for use case execution:
+ 
+-**Benefits:**
++**`UseCase`** — Single `run(options:)` method:
++```swift
++public protocol UseCase: Sendable {
++    associatedtype Options: Sendable = Void
++    associatedtype Result: Sendable
++    func run(options: Options) async throws -> Result
++}
++```
+ 
+-1. **Architectural grouping**: `ls Sources/` shows the four layers clearly
+-2. **Layer visibility**: The folder immediately identifies which architectural layer a target belongs to
+-3. **Discoverability**: Finding all SDK targets is easy — look in `sdks/`
++**`StreamingUseCase`** — Extends `UseCase` with streaming state:
++```swift
++public protocol StreamingUseCase: UseCase {
++    associatedtype State: Sendable
++    func stream(options: Options) -> AsyncThrowingStream<State, Error>
++}
++```
+ 
+-## Data Flow
++When `Result == State`, `StreamingUseCase` provides a default `run()` that consumes the stream and returns the last state.
+ 
+-**CLI**: `useCase.stream() → print progress` or `useCase.run() → print result`
+-
+-**Mac App**: `useCase.stream() → @Observable model → View`
+-
+-## Dependency Rules
+-
+-1. **Apps** depend on Features, Services, and SDKs
+-2. **Features** depend on Services and SDKs
+-3. **Services** depend on other Services and SDKs
+-4. **SDKs** depend only on other SDKs or external packages
+-5. Never depend upward
+-
+-## When to Create a New Module
+-
+-**SDK**: Reusable, no app-specific logic, wraps external tool/service. Use `Sendable` structs.
+-
+-**Feature**: Multi-step orchestration, coordinates SDKs and services, returns `AsyncThrowingStream`. Implements `UseCase` or `StreamingUseCase`.
+-
+-**Service**: Models, configuration, stateful utilities that don't orchestrate.
+-
+-**App**: Entry point, UI, platform-specific I/O. Owns `@Observable` models.
+-
+-How the new module is physically created depends on the project's implementation strategy — see [Implementation Strategies](#implementation-strategies).
+-
+-## Further Reading
+-
+-- **[ARCHITECTURE.md](ARCHITECTURE.md)** — Architecture overview
+-- **[Dependencies.md](Dependencies.md)** — Dependency rules and boundaries
+-- **[FeatureStructure.md](FeatureStructure.md)** — How to structure feature modules
+-- **[swift-ui.md](swift-ui.md)** — SwiftUI and model architecture guidelines
+-- **[Configuration.md](Configuration.md)** — Configuration and data path management
++| Protocol | Use When | Example |
++|----------|----------|---------|
++| `UseCase` | Single result, no intermediate progress | Status checks, configuration loading |
++| `StreamingUseCase` | Multi-step with progress updates | Imports, builds, deployments |

@@ -71,3 +71,27 @@ private var isSaveErrorPresented: Binding<Bool> {
 - Alert-driving properties (`Bool` or optional) belong in `@State`, not in `@Observable` models
 - Name computed bindings `is<Context>Presented`
 - Use `presenting:` to pass optional data into alert closures instead of unwrapping
+
+### Triggering the Alert
+
+Set the optional to a non-nil value at the call site:
+
+```swift
+Button("Save") {
+    do {
+        try model.save(config)
+    } catch {
+        currentError = error
+    }
+}
+```
+
+### Naming Convention
+
+| Good | Avoid |
+|------|-------|
+| `isErrorPresented` | `showError` |
+| `isDeleteErrorPresented` | `errorShowing` |
+| `isItemToDeletePresented` | `showDeleteItem` |
+
+Follow SwiftUI's `is___Presented` pattern for all computed bindings.
