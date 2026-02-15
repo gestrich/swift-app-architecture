@@ -130,6 +130,3 @@ When reviewing code against these principles:
 - [ ] SDKs have no app-specific types or business concepts
 - [ ] Dependencies flow downward only (Apps → Features → Services → SDKs)
 
-## Source Documentation
-
-- **[Principles.md](../../../docs/architecture/Principles.md)** — Full principles document
