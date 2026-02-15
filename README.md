@@ -7,8 +7,8 @@ A Claude Code plugin providing architectural guidance for Swift application deve
 ### Via Marketplace (Recommended)
 
 1. Add the marketplace to Claude Code:
-   ```
-   /plugin marketplace add gestrich/swift-app-architecture
+   ```bash
+   claude plugin marketplace add https://github.com/gestrich/swift-app-architecture
    ```
 
 2. Install the plugin:
