@@ -140,6 +140,3 @@ When writing or reviewing code:
 - [ ] Errors propagate via `throws` — no silent catch-and-ignore
 - [ ] Only the app layer (models/CLI) catches errors to display to the user
 
-## Source Documentation
-
-- **[code-style.md](../../../docs/architecture/code-style.md)** — Full code style reference
