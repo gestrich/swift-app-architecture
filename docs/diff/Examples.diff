@@ -1,0 +1,245 @@
+--- docs/architecture/Examples.md	2026-02-15 08:50:46
++++ plugin/skills/swift-architecture/examples.md	2026-02-15 11:36:28
+@@ -1,17 +1,13 @@
+-# Reference Implementation: Example Feature Walkthrough
++# Architecture Reference Examples
+ 
+-This document shows the ideal implementation of the layered architecture using a generic **Import** feature as the reference example. The directory structure below uses the "targets in a single package" strategy — see [Layers.md — Implementation Strategies](Layers.md#implementation-strategies) for alternatives.
++Complete implementation examples showing code across all four layers using a generic **Import** feature as the reference walkthrough. The directory structure below uses the "targets in a single package" strategy — see [Layers.md — Implementation Strategies](layers.md#implementation-strategies) for alternatives.
+ 
+ ## Directory Structure
+ 
+-### SDK Module (APIClientSDK)
+ ```
+ sdks/APIClientSDK/
+-└── APIClient.swift              # Stateless Sendable struct
+-```
++└── APIClient.swift                # Stateless Sendable struct
+ 
+-### Service Module (CoreService)
+-```
+ services/CoreService/
+ ├── Models/
+ │   ├── ImportConfig.swift
+@@ -19,34 +15,26 @@
+ │   └── DataSource.swift
+ └── Configuration/
+     └── AppConfiguration.swift
+-```
+ 
+-### Feature Module (ImportFeature)
+-```
+ features/ImportFeature/
+ ├── usecases/
+-│   ├── ImportUseCase.swift        # StreamingUseCase conformer
+-│   └── ValidateUseCase.swift      # UseCase conformer
++│   ├── ImportUseCase.swift         # StreamingUseCase conformer
++│   └── ValidateUseCase.swift       # UseCase conformer
+ └── services/
+-    └── ImportMapper.swift         # Feature-specific helpers
+-```
++    └── ImportMapper.swift          # Feature-specific helpers
+ 
+-### App Modules (MyMacApp, MyCLIApp)
+-```
+ apps/MyMacApp/
+ ├── Models/
+-│   └── ImportModel.swift          # @Observable model
++│   └── ImportModel.swift           # @Observable model
+ └── Views/
+-    └── ImportView.swift           # SwiftUI view
++    └── ImportView.swift            # SwiftUI view
+ 
+ apps/MyCLIApp/
+-└── ImportCommand.swift            # CLI command
++└── ImportCommand.swift             # CLI command
+ ```
+ 
+-## Data Flow Example
++## Data Flow
+ 
+-This shows the complete flow from user interaction to result:
+-
+ ```
+ User clicks "Import" in Mac app
+     ↓
+@@ -64,11 +52,10 @@
+ ImportView re-renders automatically     ← SwiftUI
+ ```
+ 
+-## Code Examples
++## SDK Layer — Stateless Client
+ 
+-### SDK Layer
++`sdks/APIClientSDK/APIClient.swift`
+ 
+-**Stateless client** — `sdks/APIClientSDK/APIClient.swift`
+ ```swift
+ import Foundation
+ 
+@@ -80,7 +67,6 @@
+     }
+ 
+     public func submitImport(payload: Data) -> AsyncThrowingStream<ImportProgress, Error> {
+-        // Single operation returning a stream
+         AsyncThrowingStream { continuation in
+             Task {
+                 // ... yield progress, then finish
+@@ -94,9 +80,16 @@
+ }
+ ```
+ 
+-### Service Layer
++Key traits:
++- `Sendable` struct, not a class or actor
++- Each method wraps a single operation
++- No business logic or app-specific concepts
++- Reusable across projects
+ 
+-**Shared models** — `services/CoreService/Models/ImportConfig.swift`
++## Service Layer — Shared Models
++
++`services/CoreService/Models/ImportConfig.swift`
++
+ ```swift
+ public struct ImportConfig: Sendable {
+     public let source: DataSource
+@@ -116,9 +109,15 @@
+ }
+ ```
+ 
+-### Feature Layer (Use Case)
++Key traits:
++- Models shared across features
++- No orchestration logic
++- `Sendable` for safe concurrency
+ 
+-**StreamingUseCase** — `features/ImportFeature/usecases/ImportUseCase.swift`
++## Feature Layer — Use Case
++
++`features/ImportFeature/usecases/ImportUseCase.swift`
++
+ ```swift
+ import Uniflow
+ import CoreService
+@@ -142,21 +141,19 @@
+         AsyncThrowingStream { continuation in
+             Task {
+                 do {
+-                    // 1. Validate
+                     continuation.yield(.validating)
+-                    let data = try await apiClient.fetchData(source: options.config.source.identifier)
++                    let data = try await apiClient.fetchData(
++                        source: options.config.source.identifier
++                    )
+ 
+-                    // 2. Import with progress
+                     continuation.yield(.importing(.starting))
+                     for try await progress in apiClient.submitImport(payload: data) {
+                         continuation.yield(.importing(.progress(progress)))
+                     }
+ 
+-                    // 3. Verify
+                     continuation.yield(.verifying)
+                     let status = try await apiClient.fetchStatus(id: "latest")
+ 
+-                    // 4. Complete
+                     let snapshot = ImportSnapshot(status: status, itemCount: data.count)
+                     continuation.yield(.completed(snapshot))
+                     continuation.finish()
+@@ -186,9 +183,16 @@
+ }
+ ```
+ 
+-### App Layer (Mac App — @Observable Model)
++Key traits:
++- `StreamingUseCase` conformer orchestrating multiple steps
++- Yields progress via `AsyncThrowingStream`
++- Coordinates multiple SDK calls into a workflow
++- Not `@Observable` — that belongs in Apps
+ 
+-**Model** — `apps/MyMacApp/Models/ImportModel.swift`
++## App Layer — Mac App (@Observable Model)
++
++`apps/MyMacApp/Models/ImportModel.swift`
++
+ ```swift
+ import ImportFeature
+ import CoreService
+@@ -241,7 +245,8 @@
+ }
+ ```
+ 
+-**View** — `apps/MyMacApp/Views/ImportView.swift`
++`apps/MyMacApp/Views/ImportView.swift`
++
+ ```swift
+ import SwiftUI
+ import CoreService
+@@ -278,9 +283,15 @@
+ }
+ ```
+ 
+-### App Layer (CLI — Direct Use Case Consumption)
++Key traits:
++- `@Observable` model bridges use case stream to SwiftUI
++- Enum-based `ModelState` with `prior` for retaining last-known data
++- View switches on model state — no separate loading/error properties
+ 
+-**CLI command** — `apps/MyCLIApp/ImportCommand.swift`
++## App Layer — CLI (Direct Use Case Consumption)
++
++`apps/MyCLIApp/ImportCommand.swift`
++
+ ```swift
+ import ArgumentParser
+ import ImportFeature
+@@ -322,37 +333,18 @@
+ }
+ ```
+ 
+-Notice how **both the Mac app model and CLI command consume the exact same use case** — zero duplication of business logic.
++Key traits:
++- Consumes the **same use case** as the Mac app — zero duplication
++- No `@Observable` needed — prints progress directly
++- Both apps share identical business logic
+ 
+ ## Key Takeaways
+ 
+-1. **Apps Layer is Platform-Specific**
+-   - Mac app uses `@Observable` models to bridge use case streams to SwiftUI
+-   - CLI consumes use case streams directly with `print` statements
+-   - Both call the same use cases
++| Principle | How It Shows in This Example |
++|-----------|------------------------------|
++| Apps layer is platform-specific | Mac uses `@Observable` model; CLI uses `print` — both call same use case |
++| Features layer orchestrates | `StreamingUseCase` coordinates validate → import → verify steps |
++| Services layer shares | `ImportConfig` and `DataSource` used by both feature and apps |
++| SDKs layer is stateless | `APIClient` is a `Sendable` struct with single operations |
++| Zero duplication | Fix bugs once, add features once — only app-layer consumption differs |
+ 
+-2. **Features Layer Orchestrates**
+-   - `StreamingUseCase` conformers coordinate multi-step operations
+-   - Yield progress via `AsyncThrowingStream`
+-   - No `@Observable` — that belongs in Apps
+-
+-3. **Services Layer Shares**
+-   - Models and configuration used across features
+-   - No orchestration — that belongs in Features
+-
+-4. **SDKs Layer is Stateless**
+-   - `Sendable` structs with single operations
+-   - No business logic or app-specific concepts
+-   - Reusable across features and projects
+-
+-5. **Zero Duplication**
+-   - CLI and Mac app share identical use cases
+-   - Fix bugs once, add features once
+-   - Only the app-layer consumption differs
+-
+-## Further Reading
+-
+-- **[ARCHITECTURE.md](ARCHITECTURE.md)** — Architecture overview
+-- **[Layers.md](Layers.md)** — Detailed layer descriptions with examples
+-- **[FeatureStructure.md](FeatureStructure.md)** — How to structure feature modules
+-- **[swift-ui.md](swift-ui.md)** — SwiftUI and model architecture guidelines

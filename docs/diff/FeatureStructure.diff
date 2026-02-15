@@ -1,0 +1,462 @@
+--- docs/architecture/FeatureStructure.md	2026-02-15 08:50:46
++++ plugin/skills/swift-architecture/creating-features.md	2026-02-15 11:36:28
+@@ -1,83 +1,50 @@
+-# Feature Structure Guide
++# Creating a Feature
+ 
+-This document describes how to structure features and create new ones within the layered architecture.
++Guide for creating new feature modules in the 4-layer Swift architecture. Features are **use case modules** — they contain `UseCase` / `StreamingUseCase` conformers that orchestrate multi-step operations. Features do not contain UI or CLI code.
+ 
+-## Architecture Overview
++## Workflow Overview
+ 
+-Features are **use case modules** — they contain `UseCase` / `StreamingUseCase` conformers that orchestrate multi-step operations. Features do not contain UI or CLI code; those live in the **Apps layer** as separate entry points.
++1. Create the feature module in `features/`
++2. Define use cases (`UseCase` or `StreamingUseCase`)
++3. Add feature-specific types in `services/` subdirectory if needed
++4. Add shared types to Services layer if needed
++5. Connect at the app layer (Mac model and/or CLI command)
+ 
+-```
+-Sources/
+-├── apps/                      # Entry points (Mac app, CLI, server)
+-│   ├── MyMacApp/              # @Observable models + SwiftUI views
+-│   └── MyCLIApp/              # ArgumentParser commands
+-├── features/                  # Use case modules
+-│   ├── ImportFeature/         # Import use cases
+-│   └── ExportFeature/         # Export use cases
+-├── services/                  # Shared models, config, utilities
+-│   └── CoreService/
+-└── sdks/                      # Stateless, reusable clients
+-    ├── APIClientSDK/
+-    └── Uniflow/               # UseCase protocol definitions
+-```
++> **Important:** Match the implementation strategy already used in the project (separate packages, targets in one package, or folders). If unsure, ask. See [Layers.md — Implementation Strategies](layers.md#implementation-strategies).
+ 
+-## Feature Structure Pattern
++## Step 1: Create the Feature Module
+ 
+-Each feature is a module containing use cases and feature-specific types. The internal structure is the same regardless of implementation strategy:
++Create a directory in `features/` following this structure:
+ 
+ ```
+-features/ImportFeature/
++features/MyFeature/
+ ├── usecases/
+-│   ├── ImportUseCase.swift          # StreamingUseCase conformer
+-│   ├── ValidateUseCase.swift        # UseCase conformer
+-│   └── CompositeImportUseCase.swift # Composes child use cases
++│   ├── MyUseCase.swift              # StreamingUseCase or UseCase conformer
++│   └── ValidateUseCase.swift         # Additional use cases
+ └── services/
+-    ├── ImportMapper.swift           # Feature-specific helpers
+-    └── ImportTypes.swift            # Feature-specific models
++    ├── MyMapper.swift               # Feature-specific helpers
++    └── MyTypes.swift                # Feature-specific models
+ ```
+ 
+-> The exact nesting (e.g., whether there's a `Sources/ImportFeature/` wrapper) depends on whether this is a target in a package, a standalone package, or just a folder. See [Layers.md — Implementation Strategies](Layers.md#implementation-strategies).
++### Declaring Dependencies
+ 
+-## What a Feature Contains
++How you declare dependencies depends on the project's implementation strategy:
+ 
+-A feature module contains:
+-
+-1. **Use cases** — `UseCase` or `StreamingUseCase` conformers that orchestrate multi-step operations
+-2. **Feature-specific types** — Models, mappers, and helpers that are only used within this feature
+-3. **Feature-specific configuration** — Settings or options scoped to this feature
+-
+-A feature does **not** contain:
+-
+-- ❌ SwiftUI views or `@Observable` models (those belong in Apps)
+-- ❌ CLI commands or ArgumentParser structs (those belong in Apps)
+-- ❌ Shared models used across features (those belong in Services)
+-
+-## Dependency Declaration
+-
+-How you declare feature dependencies depends on the project's implementation strategy (see [Layers.md — Implementation Strategies](Layers.md#implementation-strategies)).
+-
+-### Target in a Single Package
+-
+-The feature is a target in the project's root `Package.swift`:
+-
++**Target in a single package** — add a target in the root `Package.swift`:
+ ```swift
+-// In the root Package.swift
+ .target(
+-    name: "ImportFeature",
++    name: "MyFeature",
+     dependencies: ["Uniflow", "APIClientSDK", "CoreService"],
+-    path: "Sources/features/ImportFeature"
++    path: "Sources/features/MyFeature"
+ ),
+ ```
+ 
+-### Separate Swift Package
+-
+-The feature has its own `Package.swift`:
+-
++**Separate Swift package** — create a `Package.swift` in the feature directory:
+ ```swift
+ let package = Package(
+-    name: "ImportFeature",
++    name: "MyFeature",
+     products: [
+-        .library(name: "ImportFeature", targets: ["ImportFeature"])
++        .library(name: "MyFeature", targets: ["MyFeature"])
+     ],
+     dependencies: [
+         .package(path: "../sdks/Uniflow"),
+@@ -86,76 +53,68 @@
+     ],
+     targets: [
+         .target(
+-            name: "ImportFeature",
++            name: "MyFeature",
+             dependencies: ["Uniflow", "APIClientSDK", "CoreService"]
+         ),
+         .testTarget(
+-            name: "ImportFeatureTests",
+-            dependencies: ["ImportFeature"]
++            name: "MyFeatureTests",
++            dependencies: ["MyFeature"]
+         ),
+     ]
+ )
+ ```
+ 
+-### Folders Only
++**Folders only** — no dependency declaration needed; just create the folder.
+ 
+-No separate dependency declaration — features are folders within a single target. Layer boundaries are enforced by convention.
++### Naming Convention
+ 
+-## App Structure Pattern
++Modules use PascalCase with `<Name>Feature` suffix: `ImportFeature`, `ExportFeature`, `SyncFeature`.
+ 
+-Apps are separate entry points that consume features. They live in the `apps/` directory:
++## Step 2: Define Use Cases
+ 
+-### Mac App
+-```
+-apps/MyMacApp/
+-└── Sources/
+-    └── MyMacApp/
+-        ├── MyMacApp.swift              # @main App struct
+-        ├── Models/
+-        │   ├── AppModel.swift          # Root @Observable model
+-        │   ├── ImportModel.swift        # Import @Observable model
+-        │   └── ExportModel.swift        # Export @Observable model
+-        └── Views/
+-            ├── ContentView.swift
+-            ├── ImportView.swift
+-            └── ExportView.swift
+-```
++### Choosing UseCase vs StreamingUseCase
+ 
+-### CLI App
++| Protocol | Use When | Example |
++|----------|----------|---------|
++| `UseCase` | Single result, no intermediate progress | Status checks, validation, configuration loading |
++| `StreamingUseCase` | Multi-step with progress updates | Imports, builds, deployments, syncs |
++
++### UseCase Protocol (from Uniflow)
++
++```swift
++public protocol UseCase: Sendable {
++    associatedtype Options: Sendable = Void
++    associatedtype Result: Sendable
++
++    func run(options: Options) async throws -> Result
++}
+ ```
+-apps/MyCLIApp/
+-└── Sources/
+-    └── MyCLIApp/
+-        ├── MyCLIApp.swift              # @main root command
+-        ├── ImportCommand.swift
+-        └── ExportCommand.swift
+-```
+ 
+-Both app entry points depend on the same features — the declaration mechanism varies by implementation strategy.
++### StreamingUseCase Protocol (from Uniflow)
+ 
+-## Guidelines for New Features
++```swift
++public protocol StreamingUseCase: UseCase {
++    associatedtype State: Sendable
+ 
+-When creating a new feature:
++    func stream(options: Options) -> AsyncThrowingStream<State, Error>
++}
++```
+ 
+-### 1. Create the use case module
++When `Result == State`, a default `run()` implementation consumes the stream and returns the last state.
+ 
+-Create the feature in `features/MyFeature/`:
+-- Define use cases in `usecases/`
+-- Add feature-specific types in `services/`
++### StreamingUseCase Example
+ 
+-**Example use case:**
+ ```swift
+ import Uniflow
+ import CoreService
+ import APIClientSDK
+ 
+-public struct ExportUseCase: StreamingUseCase {
+-    public typealias State = ExportState
++public struct ImportUseCase: StreamingUseCase {
++    public typealias State = ImportState
+     public typealias Result = State
+ 
+     public struct Options: Sendable {
+-        public let format: ExportFormat
+-        public let destination: String
++        public let config: ImportConfig
+     }
+ 
+     private let apiClient: APIClient
+@@ -168,11 +127,19 @@
+         AsyncThrowingStream { continuation in
+             Task {
+                 do {
+-                    continuation.yield(.preparing)
+-                    let data = try await apiClient.fetchData(source: options.destination)
+-                    continuation.yield(.exporting(progress: 0.5))
+-                    // ... export logic
+-                    continuation.yield(.completed(ExportResult(path: options.destination)))
++                    continuation.yield(.validating)
++                    let data = try await apiClient.fetchData(source: options.config.source.identifier)
++
++                    continuation.yield(.importing(.starting))
++                    for try await progress in apiClient.submitImport(payload: data) {
++                        continuation.yield(.importing(.progress(progress)))
++                    }
++
++                    continuation.yield(.verifying)
++                    let status = try await apiClient.fetchStatus(id: "latest")
++
++                    let snapshot = ImportSnapshot(status: status, itemCount: data.count)
++                    continuation.yield(.completed(snapshot))
+                     continuation.finish()
+                 } catch {
+                     continuation.finish(throwing: error)
+@@ -181,62 +148,186 @@
+         }
+     }
+ }
++
++public enum ImportState: Sendable {
++    case validating
++    case importing(ImportProgress)
++    case verifying
++    case completed(ImportSnapshot)
++
++    public var completedSnapshot: ImportSnapshot? {
++        if case .completed(let snapshot) = self { return snapshot }
++        return nil
++    }
++}
+ ```
+ 
+-### 2. Add shared types to Services if needed
++### UseCase Example
+ 
+-If the feature introduces types that other features will use, put them in a service:
++```swift
++import Uniflow
++import CoreService
++
++public struct ValidateUseCase: UseCase {
++    public typealias Options = ValidateOptions
++    public typealias Result = ValidationResult
++
++    public struct ValidateOptions: Sendable {
++        public let source: DataSource
++    }
++
++    public func run(options: ValidateOptions) async throws -> ValidationResult {
++        // Single-step validation, no progress needed
++    }
++}
++```
++
++### Use Case Rules
++
++- Use cases are **structs**, not classes
++- Accept dependencies via `init` with defaults: `init(apiClient: APIClient = APIClient())`
++- Options are `Sendable` structs
++- State enums are `Sendable`
++- No `@Observable` — that belongs in the Apps layer
++
++## Step 3: Add Shared Types to Services (If Needed)
++
++If the feature introduces types that **other features will also use**, put them in a service:
++
+ - `services/CoreService/` for core models
+ - `services/AuthService/` for auth-related types
+ - Create a new service only if the types don't fit an existing one
+ 
+-### 3. Add app-layer consumption
++Types used **only by this feature** stay in `features/MyFeature/services/`.
+ 
+-**Mac app** — Create an `@Observable` model that consumes the use case stream:
++## Step 4: Connect at the App Layer
++
++### Mac App — @Observable Model
++
++Create an `@Observable` model in `apps/MyMacApp/Models/` that consumes the use case stream:
++
+ ```swift
++import ImportFeature
++import CoreService
++
+ @MainActor @Observable
+-class ExportModel {
+-    var state: ModelState = .ready
++class ImportModel {
++    var state: ModelState = .loading(prior: nil)
++    private let useCase: ImportUseCase
+ 
+-    func startExport(format: ExportFormat, destination: String) {
++    init(useCase: ImportUseCase = ImportUseCase()) {
++        self.useCase = useCase
++    }
++
++    func startImport(config: ImportConfig) {
++        let prior = state.snapshot
+         Task {
+-            for try await useCaseState in useCase.stream(options: .init(format: format, destination: destination)) {
+-                state = ModelState(from: useCaseState)
++            do {
++                for try await useCaseState in useCase.stream(options: .init(config: config)) {
++                    state = ModelState(from: useCaseState, prior: prior)
++                }
++            } catch {
++                state = .error(error, prior: prior)
+             }
+         }
+     }
++
++    enum ModelState {
++        case loading(prior: ImportSnapshot?)
++        case ready(ImportSnapshot)
++        case operating(ImportState, prior: ImportSnapshot?)
++        case error(Error, prior: ImportSnapshot?)
++
++        var snapshot: ImportSnapshot? {
++            switch self {
++            case .ready(let s): return s
++            case .operating(_, let prior): return prior
++            case .loading(let prior): return prior
++            case .error(_, let prior): return prior
++            }
++        }
++
++        init(from useCaseState: ImportState, prior: ImportSnapshot?) {
++            if let snapshot = useCaseState.completedSnapshot {
++                self = .ready(snapshot)
++            } else {
++                self = .operating(useCaseState, prior: prior)
++            }
++        }
++    }
+ }
+ ```
+ 
+-**CLI** — Create a command that uses the use case directly:
++Key patterns:
++- **Enum-based state** — not multiple independent properties
++- **State ownership** — use cases own state data, models own state transitions
++- **Minimal mapping** — receive use case state and assign; complex mapping means the use case should return better-structured state
++
++### CLI — Direct Use Case Consumption
++
++Create a command in `apps/MyCLIApp/` that uses the use case directly:
++
+ ```swift
+-struct ExportCommand: AsyncParsableCommand {
++import ArgumentParser
++import ImportFeature
++import CoreService
++
++struct ImportCommand: AsyncParsableCommand {
++    static let configuration = CommandConfiguration(
++        commandName: "import",
++        abstract: "Import data from a source"
++    )
++
++    @Option(help: "Data source path or URL")
++    var source: String
++
+     func run() async throws {
+-        for try await state in useCase.stream(options: opts) {
+-            printProgress(state)
++        let config = ImportConfig(source: .local(path: source), validateFirst: true, batchSize: 100)
++        let useCase = ImportUseCase()
++
++        for try await state in useCase.stream(options: .init(config: config)) {
++            switch state {
++            case .validating: print("Validating...")
++            case .importing(let progress): print("Importing: \(progress)")
++            case .verifying: print("Verifying...")
++            case .completed(let snapshot): print("Done — \(snapshot.itemCount) items imported")
++            }
+         }
+     }
+ }
+ ```
+ 
+-### 4. Follow the dependency rules
++Both the Mac model and CLI command consume the **same use case** — zero duplication of business logic.
+ 
+-- Features → Services, SDKs
+-- Apps → Features, Services, SDKs
+-- No reverse dependencies
+-- See [Dependencies.md](Dependencies.md) for details
++### App Dependencies
+ 
+-### 5. Share all business logic via use cases
++Both app entry points depend on the same features — the declaration mechanism varies by implementation strategy.
+ 
+-- CLI and Mac app consume the same use cases
+-- No duplication of orchestration logic
+-- Only the app-layer consumption pattern differs (model vs direct)
++## What a Feature Contains vs. Does Not Contain
+ 
+-## Key Points
++**Contains:**
++- Use cases (`UseCase` / `StreamingUseCase` conformers)
++- Feature-specific types (models, mappers, helpers scoped to this feature)
++- Feature-specific configuration
+ 
+-1. **Features are use case modules** — not UI/CLI target pairs
+-2. **Apps are separate entry points** — Mac app, CLI, and server each have their own target in `apps/`
+-3. **Use cases orchestrate** — multi-step operations via `UseCase` / `StreamingUseCase`
+-4. **Zero duplication** — CLI and Mac app share the same features
+-5. **Independent modules** — features can be built and tested in isolation (when using targets or packages)
+-6. **@Observable in Apps only** — models live in the app layer, not in features
++**Does NOT contain:**
++- SwiftUI views or `@Observable` models (Apps layer)
++- CLI commands or ArgumentParser structs (Apps layer)
++- Shared models used across features (Services layer)
++
++## Checklist
++
++**Before creating the feature:**
++- [ ] Is this really needed or can I extend an existing feature?
++- [ ] Does it orchestrate multi-step operations? (If not, it may belong in Services)
++- [ ] Does the name follow `<Name>Feature` convention?
++- [ ] Am I using the same implementation strategy as the rest of the project?
++
++**After creating the feature:**
++- [ ] Module builds independently (when using targets or packages)
++- [ ] All dependencies flow downward only
++- [ ] Use cases conform to `UseCase` or `StreamingUseCase`
++- [ ] No `@Observable` in the feature module
++- [ ] Feature-only types are in `features/MyFeature/services/`, shared types in Services
++- [ ] App-layer model and/or CLI command created to consume the use cases
++

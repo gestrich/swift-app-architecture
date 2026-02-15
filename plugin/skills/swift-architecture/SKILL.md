@@ -185,15 +185,68 @@ For decision flowcharts and boundary guidance, see [layers.md](layers.md).
 - [ ] Does it follow the `<Name><Layer>` naming convention?
 - [ ] Am I using the same implementation strategy (packages, targets, or folders) as the rest of the project?
 
-## Source Documentation
 
-For deeper dives, see the full architecture docs:
+## Performance Patterns
 
-- **[ARCHITECTURE.md](../../../docs/architecture/ARCHITECTURE.md)** — Full architecture overview
-- **[Layers.md](../../../docs/architecture/Layers.md)** — Detailed layer descriptions
-- **[Dependencies.md](../../../docs/architecture/Dependencies.md)** — Dependency rules and boundaries
-- **[FeatureStructure.md](../../../docs/architecture/FeatureStructure.md)** — Feature module structure
-- **[Examples.md](../../../docs/architecture/Examples.md)** — Reference implementation walkthrough
-- **[Principles.md](../../../docs/architecture/Principles.md)** — Core architectural principles
-- **[Configuration.md](../../../docs/architecture/Configuration.md)** — Configuration and data paths
-- **[code-style.md](../../../docs/architecture/code-style.md)** — Code style conventions
+### Parallel Processing
+- Use cases can process work concurrently using Swift Concurrency
+- Independent operations can run in parallel within a streaming use case
+
+### Caching
+- Commit-based caching invalidates automatically when code changes
+- Per-module granularity minimizes redundant work
+- Three-level cache hierarchy: whole-repo snapshots, per-module caches, dependency graph caches
+
+### Lazy Loading
+- UI uses `LazyVStack` / `LazyHStack` for efficient scrolling
+- Data loaded on-demand
+
+### Progress Reporting
+- Use cases report real-time progress via `AsyncThrowingStream`
+- Apps display progress however they choose (SwiftUI indicators, CLI terminal output, server logs)
+
+## Testing Strategy
+
+### Unit Tests
+- Test individual parsers and utilities
+- Test graph/dependency algorithms
+- Test cache invalidation logic
+
+### Integration Tests
+- End-to-end use case workflows
+- Cache hit/miss scenarios
+
+### Manual Testing via CLI
+- Use CLI commands against real data
+- Verify results match expectations
+
+## Common Questions
+
+**I'm adding a new feature to the app. Where does it go?**
+Create three things:
+1. **Feature module** in `features/MyFeature/` — use cases that orchestrate the logic
+2. **Mac app model** in `apps/MyMacApp/Models/` — `@Observable` model consuming use case streams
+3. **CLI command** in `apps/MyCLIApp/` — command consuming use cases directly (if CLI access needed)
+
+**Where do `@Observable` models go?**
+Always in the **Apps layer** (`apps/MyMacApp/Models/`). Never in Features or Services.
+
+**Can a feature depend on another feature?**
+No. If two features need shared logic, extract to a **Service** or **SDK**. Compose at the **App layer**.
+
+**How do I share code between CLI and Mac app?**
+Put all shared logic in **Features** (use cases). Both CLI commands and Mac models consume the same use cases.
+
+## Documentation Workflow
+
+Documentation follows this directory structure:
+
+```
+docs/
+├── proposed/        # In-progress specs and proposals
+└── completed/       # Finished implementation docs
+```
+
+- Create a proposal in `docs/proposed/` when planning new work
+- Move to `docs/completed/` once implementation is merged
+- `plugin/skills/` is the **single source of truth** for architecture documentation

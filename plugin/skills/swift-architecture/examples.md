@@ -1,6 +1,6 @@
 # Architecture Reference Examples
 
-Complete implementation examples showing code across all four layers using a generic **Import** feature as the reference walkthrough. The directory structure below uses the "targets in a single package" strategy — see [Layers.md — Implementation Strategies](../../../docs/architecture/Layers.md#implementation-strategies) for alternatives.
+Complete implementation examples showing code across all four layers using a generic **Import** feature as the reference walkthrough. The directory structure below uses the "targets in a single package" strategy — see [Layers.md — Implementation Strategies](layers.md#implementation-strategies) for alternatives.
 
 ## Directory Structure
 
@@ -348,6 +348,3 @@ Key traits:
 | SDKs layer is stateless | `APIClient` is a `Sendable` struct with single operations |
 | Zero duplication | Fix bugs once, add features once — only app-layer consumption differs |
 
-## Source Documentation
-
-- **[Examples.md](../../../docs/architecture/Examples.md)** — Full reference implementation walkthrough
