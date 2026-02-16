@@ -71,9 +71,11 @@ Clone and inventory https://github.com/gestrich/GoldenPath. Document what's in i
 
 **Completed:** 2026-02-15. Full inventory in `docs/proposed/2026-02-15-c-goldenpath-inventory.md`. Key findings: 6 Principles docs (MV Architecture, SwiftUI Style/Sheets/Forms/Detail Views, Swift Style), mostly documentation value. High overlap with `swift-swiftui` skill for architecture and view patterns; new content for sheets, forms, and detail views. Navigation patterns still being researched (not ready to absorb).
 
-## - [ ] Phase 2: Inventory Bill's Swift Experiment Repos
+## - [x] Phase 2: Inventory Bill's Swift Experiment Repos
 
 Survey Bill's other Swift repos on GitHub (gestrich/*) for experiments, learnings, and best practices that could be converted to skills. Produce a consolidated inventory.
+
+**Completed:** 2026-02-15. Full inventory in `docs/proposed/2026-02-15-e-swift-experiment-repos-inventory.md`. Surveyed 80+ repos. Key findings: 3 high-potential skill candidates (SwiftCLI → `swift-cli`, swift-lambda-sample → `swift-lambda`, Vapor repos → `swift-vapor`). PRRadar validates 4-layer architecture. background-processing-experiments and xcode-sim-automation have medium potential. Most other Swift repos are domain-specific apps or utility libraries without authored principles.
 
 ## - [ ] Phase 3: Propose Directory Structure
 
