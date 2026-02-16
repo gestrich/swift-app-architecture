@@ -69,7 +69,7 @@ Voice dump from Bill — raw ideas for reorganizing skills across repositories. 
 
 Clone and inventory https://github.com/gestrich/GoldenPath. Document what's in it — topics covered, notable patterns, experiments, and learnings. Produce a summary of what content could become skills or be absorbed into existing skills.
 
-**Completed:** 2026-02-15. Full inventory in `docs/proposed/goldenpath-inventory.md`. Key findings: 6 Principles docs (MV Architecture, SwiftUI Style/Sheets/Forms/Detail Views, Swift Style), mostly documentation value. High overlap with `swift-swiftui` skill for architecture and view patterns; new content for sheets, forms, and detail views. Navigation patterns still being researched (not ready to absorb).
+**Completed:** 2026-02-15. Full inventory in `docs/proposed/2026-02-15-c-goldenpath-inventory.md`. Key findings: 6 Principles docs (MV Architecture, SwiftUI Style/Sheets/Forms/Detail Views, Swift Style), mostly documentation value. High overlap with `swift-swiftui` skill for architecture and view patterns; new content for sheets, forms, and detail views. Navigation patterns still being researched (not ready to absorb).
 
 ## - [ ] Phase 2: Inventory Bill's Swift Experiment Repos
 
