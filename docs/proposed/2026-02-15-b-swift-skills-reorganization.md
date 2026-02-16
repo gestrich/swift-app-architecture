@@ -63,9 +63,22 @@ Voice dump from Bill — raw ideas for reorganizing skills across repositories. 
 - Should the Python skills follow the same pattern?
 - How to handle the rename from `swift-app-architecture` → `swift-skills` without breaking existing references (OpenClaw `extraDirs`, etc.)
 
-## Next Steps
+## Phases
 
-- [ ] Clone and inventory https://github.com/gestrich/GoldenPath
-- [ ] Inventory what skills/content exists across Bill's Swift experiment repos
-- [ ] Propose a concrete directory structure for the consolidated `swift-skills` repo
-- [ ] Create actionable phases for the migration
+## - [x] Phase 1: Inventory GoldenPath Repository
+
+Clone and inventory https://github.com/gestrich/GoldenPath. Document what's in it — topics covered, notable patterns, experiments, and learnings. Produce a summary of what content could become skills or be absorbed into existing skills.
+
+**Completed:** 2026-02-15. Full inventory in `docs/proposed/goldenpath-inventory.md`. Key findings: 6 Principles docs (MV Architecture, SwiftUI Style/Sheets/Forms/Detail Views, Swift Style), mostly documentation value. High overlap with `swift-swiftui` skill for architecture and view patterns; new content for sheets, forms, and detail views. Navigation patterns still being researched (not ready to absorb).
+
+## - [ ] Phase 2: Inventory Bill's Swift Experiment Repos
+
+Survey Bill's other Swift repos on GitHub (gestrich/*) for experiments, learnings, and best practices that could be converted to skills. Produce a consolidated inventory.
+
+## - [ ] Phase 3: Propose Directory Structure
+
+Based on the inventories from Phases 1-2, propose a concrete directory structure for the consolidated `swift-skills` repo. Include where existing skills would live, where new skills would go, and how sub-skills would be organized by topic.
+
+## - [ ] Phase 4: Migration Plan
+
+Create actionable migration phases for renaming the repo, reorganizing skills, and absorbing content from other repos. Address the open question about breaking existing references (`extraDirs`, etc.).
