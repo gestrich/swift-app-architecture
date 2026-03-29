@@ -113,6 +113,61 @@ If two features need shared logic, extract to a **Service** or **SDK**. Compose 
 - Stateful utilities that **don't** orchestrate multi-step operations
 - No orchestration (that belongs in Features)
 
+#### Stateful Services
+
+Services don't always need to be stateless. When the domain is more complex than CRUD or REST-style request/response, a service may need to hold state that is critical to what it represents.
+
+**When to make a service stateful:**
+- The service manages a live session or connection (e.g., a chat thread with evolving message history)
+- The service acts as a cache where callers expect to read back what was written without hitting the backing store every time
+- The domain has state transitions that must be tracked consistently across multiple use case calls (e.g., connection status, sync state)
+
+**Why not just track this state in the app-layer model?** You could — but when the state is inherent to the service's domain (not to how it's displayed), pushing it into the model creates problems:
+- Multiple consumers (Mac app, CLI, tests) each need to replicate the same state management logic
+- The model becomes responsible for business invariants it shouldn't own
+- State consistency across features becomes the app layer's burden
+
+**Example — a chat service that holds conversation state:**
+
+```swift
+public actor ChatService {
+    private let client: AIClient
+    private var conversations: [String: [Message]] = [:]
+
+    public init(client: AIClient) {
+        self.client = client
+    }
+
+    public func send(
+        prompt: String,
+        sessionId: String,
+        onEvent: @Sendable (ChatEvent) -> Void
+    ) async throws -> ChatResult {
+        var history = conversations[sessionId, default: []]
+        history.append(.user(prompt))
+
+        let result = try await client.run(
+            prompt: prompt,
+            onStreamEvent: { event in onEvent(ChatEvent(from: event)) }
+        )
+
+        history.append(.assistant(result.text))
+        conversations[sessionId] = history
+        return ChatResult(text: result.text, sessionId: sessionId)
+    }
+}
+```
+
+The conversation history **must** live in the service — it's not a UI concern, it's fundamental to how chat works. Every call to `send` depends on prior state.
+
+**Lifecycle implications:** A stateful service typically lives for the app's lifetime. The use case that wraps it holds a reference to the service (not creating a new one per call), and the app-layer model holds a reference to the use case. This creates a longer-lived object chain than the typical create-call-discard pattern:
+
+```
+Model (app lifetime) → UseCase (app lifetime) → StatefulService (app lifetime)
+```
+
+This is a deliberate tradeoff. Use it when the domain requires it — not as a default. Most services remain simple shared types or configuration holders with no internal state.
+
 ### SDKs Layer
 - **Stateless** `Sendable` structs — no internal state management
 - Each method wraps a **single operation** (one CLI command, one API call)

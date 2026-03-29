@@ -182,6 +182,73 @@ public struct ValidateUseCase: UseCase {
 }
 ```
 
+### Observation Streams
+
+Use cases aren't limited to one-and-done operations or multi-step workflows that finish. A use case can also return an `AsyncStream` that represents **ongoing observation** of a long-lived service.
+
+This is useful when a UI component is tailored to responding to a stream of events in real time — where polling the use case for updates would be unnatural. For example, a chat interface that needs to display tokens as they arrive, or a sync status view that reflects live connection state.
+
+```swift
+public struct ObserveChatUseCase: Sendable {
+    private let chatService: ChatService
+
+    public init(chatService: ChatService) {
+        self.chatService = chatService
+    }
+
+    func startRun(prompt: String) throws -> ChatRunHandle {
+        let (stream, continuation) = AsyncStream<ChatEvent>.makeStream()
+        let resultHolder = ResultHolder<ChatResult>()
+
+        Task {
+            do {
+                let result = try await chatService.send(
+                    prompt: prompt,
+                    onEvent: { event in continuation.yield(event) }
+                )
+                continuation.finish()
+                await resultHolder.succeed(result)
+            } catch {
+                continuation.finish()
+                await resultHolder.fail(error)
+            }
+        }
+
+        return ChatRunHandle(
+            events: stream,
+            result: { try await resultHolder.value }
+        )
+    }
+}
+```
+
+The key difference from `StreamingUseCase` is that the stream here isn't reporting progress through discrete workflow steps — it's forwarding live events from a stateful service underneath. The use case acts as a thin bridge between the service's event stream and the consumer.
+
+**When this pattern requires a persistent use case reference:** Because the underlying service holds state (see [Stateful Services](layers.md#stateful-services)), the use case that wraps it may need to live for the app's lifecycle rather than being created per-call. This means the app-layer model holds a long-lived reference to the use case:
+
+```swift
+@MainActor @Observable
+class ChatModel {
+    var messages: [ChatMessage] = []
+    private let chatUseCase: ObserveChatUseCase  // lives as long as the model
+
+    init(chatUseCase: ObserveChatUseCase) {
+        self.chatUseCase = chatUseCase
+    }
+
+    func send(prompt: String) {
+        Task {
+            let handle = try chatUseCase.startRun(prompt: prompt)
+            for await event in handle.events {
+                applyEvent(event)
+            }
+        }
+    }
+}
+```
+
+This is a tradeoff: the model now retains both the use case and (indirectly) the stateful service for the app's lifetime. This is appropriate when the domain genuinely requires long-lived state — but it shouldn't be the default. Most use cases remain short-lived structs created per-call.
+
 ### Use Case Rules
 
 - Use cases are **structs**, not classes
