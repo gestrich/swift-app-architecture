@@ -61,6 +61,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             Begin the self-improvement run for the skills content under ${{ env.SKILLS_PATH }}.
 
