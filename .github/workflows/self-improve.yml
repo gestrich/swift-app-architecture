@@ -1,0 +1,73 @@
+# Self-improvement workflow for the skills content under plugin/skills/.
+#
+# This is NOT a conformance check — it does not look at the demo app. It reviews
+# the skill markdown itself for gaps, contradictions, ambiguity, missing examples,
+# and stale guidance, and opens draft PRs against this repo only.
+#
+# Distinction from self-conformance.yml:
+#   - self-conformance.yml: checks the demo app for skill conformance.
+#   - self-improve.yml (this file): checks the skills content for clarity/gaps.
+
+name: Self Improve
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  self-improve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      STATE_BRANCH: claude/self-improve-state
+      AGENT_INSTRUCTIONS_PATH: .github/agent-instructions-self-improve.md
+      SKILLS_PATH: plugin/skills
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "swift-best-practices-bot"
+          git config --global user.email "swift-best-practices-bot@users.noreply.github.com"
+
+      - name: Hydrate self-improve state
+        # Pulls state.json off the state branch into .self-improve/state.json so the
+        # agent can read it locally. The agent itself is responsible for pushing
+        # updates back to the state branch at the end of the run (see
+        # agent-instructions-self-improve.md).
+        run: |
+          mkdir -p .self-improve
+          if git ls-remote --exit-code --heads origin "$STATE_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$STATE_BRANCH:$STATE_BRANCH"
+            git show "$STATE_BRANCH:state.json" > .self-improve/state.json 2>/dev/null \
+              || echo '{}' > .self-improve/state.json
+          else
+            echo '{}' > .self-improve/state.json
+          fi
+
+      - name: Run skills self-improvement
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --model claude-opus-4-7
+            --system-prompt-file ${{ env.AGENT_INSTRUCTIONS_PATH }}
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh repo:*),Bash(gh api:*),Bash(gh auth:*),Bash(mkdir:*),Bash(mv:*),Bash(cp:*),Bash(rm:*)"
+            --max-turns 40
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_BRANCH: ${{ env.STATE_BRANCH }}
+          SKILLS_PATH: ${{ env.SKILLS_PATH }}
+          AGENT_INSTRUCTIONS_PATH: ${{ env.AGENT_INSTRUCTIONS_PATH }}

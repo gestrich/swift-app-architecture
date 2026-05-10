@@ -344,7 +344,10 @@ jobs:
 
 ---
 
-## - [ ] Phase 5: Self-Improvement Workflow for Skills Content
+## - [x] Phase 5: Self-Improvement Workflow for Skills Content
+
+**Skills used**: `swift-architecture`, `swift-swiftui`
+**Principles applied**: Kept the self-improvement workflow strictly separate from conformance — different agent instructions file (`agent-instructions-self-improve.md`), different state branch (`claude/self-improve-state`), different cron slot (03:00 UTC vs 02:00 UTC) — so the two roles never interfere on token usage, PR queue, or state writes. Workflow is intentionally **not** a `workflow_call` reusable: improving this repo's skills is a job only this repo runs, so making it reusable would be speculative API surface. Mirrored Phase 4's hydrate-state-then-let-agent-write-state pattern verbatim so the "never write partial state" rule from Phase 1 holds the same way. Same `claude-code-action@v1` invocation, same tool allowlist, same permissions block — keeps drift between the two workflows minimal. Roadmap walks one document per run with explicit ordering listed in the agent instructions, so the agent never has to invent a traversal order. PR scope rules deliberately exclude typo-only PRs, whitespace, and renames — the failure mode this workflow most needs to avoid is high-volume low-value churn.
 
 **Skills to read:** `swift-architecture`, `swift-swiftui`
 
