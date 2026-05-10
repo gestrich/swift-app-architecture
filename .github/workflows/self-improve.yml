@@ -61,6 +61,15 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Begin the self-improvement run for the skills content under ${{ env.SKILLS_PATH }}.
+
+            Follow your system prompt (agent-instructions-self-improve.md) verbatim. Read
+            .self-improve/state.json for the previous run's checkpoint, walk the next document
+            in your roadmap, open any high-confidence improvement PR per the protocol, and write
+            updated state back to the ${{ env.STATE_BRANCH }} branch before exiting.
+
+            If you do nothing, write a short run summary explaining why.
           claude_args: |
             --model claude-opus-4-7
             --system-prompt-file ${{ env.AGENT_INSTRUCTIONS_PATH }}
