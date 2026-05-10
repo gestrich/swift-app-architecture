@@ -102,7 +102,10 @@ The quality of every downstream phase depends on these instructions. Draft the p
 
 ---
 
-## - [ ] Phase 2: Research GitHub Agentic Workflow Patterns
+## - [x] Phase 2: Research GitHub Agentic Workflow Patterns
+
+**Skills used**: none
+**Principles applied**: Verified each building block against primary sources (GitHub docs, anthropics/claude-code-action README + docs, gh-aw reference) rather than relying on memory. Picked the GitHub App over PAT for upstream auth based on rate limits and lifecycle. Adopted the gh-aw `repo-memory` convention (`memory/<id>` branch, last-writer-wins) instead of inventing a custom state-branch protocol — Phase 4 can either use gh-aw directly or mirror its conventions, but both options now have a concrete reference.
 
 **Skills to read:** none
 
@@ -123,6 +126,127 @@ Before writing YAML, confirm the building blocks:
 - Document how the workflow uses one token for caller-repo PRs and a different one for upstream PRs against this repo
 
 **Outcome:** A research note appended to this doc with verified patterns before any YAML is written.
+
+### Research Notes (2026-05-10)
+
+#### 1. GitHub agentic workflow pattern
+
+GitHub ships an official "Agentic Workflows" framework (`github/gh-aw`, technical preview as of Feb 2026). It is **not required** for our use case — we can call `anthropics/claude-code-action` directly from a normal `.github/workflows/*.yml` — but its conventions are worth borrowing.
+
+**Workflow definition format (gh-aw):** Markdown files with YAML frontmatter (config) + natural-language body (the prompt). Compiled into a sandboxed runner job with read-only token, then a separate "safe outputs" job applies write operations (issues, PRs, commits) that the agent proposed as a structured artifact.
+
+**State persistence — `repo-memory` (the pattern we'll mirror):**
+- **Branch name:** `memory/default` by default; customizable as `{branch-prefix}/{id}` (e.g. `daily/insights`).
+- **Filesystem path during run:** `/tmp/gh-aw/repo-memory-{id}/` — agent reads/writes regular files; the runner auto-commits and pushes them to the memory branch after the workflow completes.
+- **Schema:** No required schema. `.json`, `.md`, `.txt`, `.csv` are all supported. Defaults: `max-file-size: 10KB`, `max-file-count: 100`.
+- **Concurrency:** Last-writer-wins. If another run pushed since the branch was checked out, the runner replays the local diff on top of the latest remote via a GraphQL mutation. No manual conflict resolution.
+- **Frontmatter:** `tools: { repo-memory: true }` (or with explicit id/branch-prefix/file-glob).
+
+**Decision for Phase 4:** Use the same conventions even when calling `claude-code-action` directly — branch named `claude/conformance-state` (matches the spec above), single `state.json` file, last-writer-wins via force-push or replay-on-top. Don't invent a new schema.
+
+**Reference:** `https://github.github.com/gh-aw/reference/repo-memory/`
+
+#### 2. `anthropics/claude-code-action`
+
+- **Latest stable:** `v1` (released Aug 2025; v0.x → v1 is a breaking change — inputs collapsed to `prompt` + `claude_args`).
+- **Auth:** `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}` works as expected. Alternatives: `claude_code_oauth_token`, AWS Bedrock, Vertex AI, Microsoft Foundry.
+- **Mode detection:** Auto. Cron/`workflow_dispatch` triggers run in **Automation Mode** (no `@claude` mention needed) — exactly what we want.
+- **Required job permissions** for write operations (commits, PRs, issues):
+  ```yaml
+  permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+    id-token: write       # required by the action itself
+  ```
+- **Tool allowlist** is passed via `claude_args` (deprecated standalone `allowed_tools` input still works):
+  ```yaml
+  claude_args: |
+    --model claude-opus-4-7
+    --system-prompt-file .github/agent-instructions.md
+    --allowedTools "Read,Write,Edit,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*)"
+    --max-turns 30
+  ```
+- **System prompt** comes from `claude_args: --system-prompt` (inline) or `--system-prompt-file <path>`. We'll use the file form so `.github/agent-instructions.md` (Phase 1 output) is the authoritative source.
+- **Cross-repo PR creation is NOT built-in.** The action authenticates against the repo it's checked out in. To open a PR against `swift-app-architecture` from a run inside a caller repo, the workflow must do a second `actions/checkout@v4` of `gestrich/swift-app-architecture` with `token: ${{ secrets.UPSTREAM_PAT }}` and let Claude branch/commit/push there via `gh pr create`.
+
+**Reference:** `https://github.com/anthropics/claude-code-action`
+
+#### 3. Reusable workflows
+
+- **Cross-repo `uses:` syntax confirmed:**
+  `uses: gestrich/swift-app-architecture/.github/workflows/conformance.yml@main` — value must be a literal (no expression interpolation), `@ref` is required (branch, tag, or SHA — pin to SHA in production for supply-chain safety).
+- **Same-repo (self-pilot) caller:** `uses: ./.github/workflows/conformance.yml` — no network round-trip, no `@ref`. Confirmed valid.
+- **Visibility requirement:** For external repos to call our reusable workflow, this repo must be **public** OR use GitHub's "actions access" setting to whitelist callers. Since `swift-app-architecture` is public, no extra config needed.
+- **Dual triggers:** A reusable workflow defined with `on: workflow_call` can also be invoked by `workflow_dispatch` and `schedule` from inside its own repo via a thin caller workflow (which is exactly what `self-conformance.yml` does). The reusable file itself only declares `workflow_call`; the scheduling lives in the caller.
+- **Secrets passing:**
+  - **Same org / same repo:** `secrets: inherit` (one line, implicitly forwards all secrets).
+  - **Cross-org or explicit:** name them in the `secrets:` block:
+    ```yaml
+    jobs:
+      conformance:
+        uses: gestrich/swift-app-architecture/.github/workflows/conformance.yml@main
+        secrets:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          UPSTREAM_PAT: ${{ secrets.SWIFT_BEST_PRACTICES_PAT }}
+    ```
+  - GitHub validates this at parse time — secrets passed via `with:` (instead of `secrets:`) are rejected before the job starts.
+- **Reusable workflow declares them:**
+  ```yaml
+  on:
+    workflow_call:
+      secrets:
+        ANTHROPIC_API_KEY: { required: true }
+        UPSTREAM_PAT: { required: false }
+  ```
+
+**Reference:** `https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows`
+
+#### 4. Two-directional PR auth
+
+Every conformance run needs two distinct write contexts:
+
+| Target | Token | Source |
+|--------|-------|--------|
+| Caller repo (fix PRs) | `GITHUB_TOKEN` | Auto-issued by Actions; `permissions:` block grants `contents: write`, `pull-requests: write`. |
+| `swift-app-architecture` (new-paradigm PRs) | `UPSTREAM_PAT` or GitHub App installation token | External secret declared in caller workflow. |
+
+**Recommendation: GitHub App, not PAT.** Confirmed reasons:
+- **Rate limits:** GitHub Apps get 15,000 req/hr per installation; PATs get 5,000 req/hr per user. Conformance runs across many repos will accumulate.
+- **Lifecycle:** App installations survive when the installing user leaves the org; PATs die with the user account and consume a seat.
+- **Token lifetime:** App tokens are short-lived (~1 hour, generated per run via `actions/create-github-app-token`); PATs are long-lived secrets — bigger blast radius if leaked.
+- **PAT pitfalls confirmed:** Fine-grained PATs cannot contribute to repos where the user is only an outside/repo collaborator, and have documented 403 "Resource not accessible" issues even with the right scopes.
+
+**Required scopes (either token type):**
+- `contents: write` (push branches)
+- `pull-requests: write` (open PRs)
+- `metadata: read` (always required for fine-grained access)
+
+**Phase 4 wiring:**
+1. Create a GitHub App named e.g. "swift-best-practices-bot", install it on `gestrich/swift-app-architecture` with the three scopes above.
+2. Store its App ID and private key as repo/org secrets (`UPSTREAM_APP_ID`, `UPSTREAM_APP_PRIVATE_KEY`).
+3. In `conformance.yml`, mint an installation token at job start:
+   ```yaml
+   - uses: actions/create-github-app-token@v1
+     id: upstream-token
+     with:
+       app-id: ${{ secrets.UPSTREAM_APP_ID }}
+       private-key: ${{ secrets.UPSTREAM_APP_PRIVATE_KEY }}
+       owner: gestrich
+       repositories: swift-app-architecture
+   ```
+4. Pass `${{ steps.upstream-token.outputs.token }}` only to the upstream-checkout step. Caller-repo operations continue to use `GITHUB_TOKEN`.
+
+**Fallback** (lower-friction MVP): Start with a fine-grained PAT (`UPSTREAM_PAT`), upgrade to a GitHub App if rate limits or seat-management become painful. The wiring is identical; only the token source changes. The doc spec already references `SWIFT_BEST_PRACTICES_PAT`, so this fallback is what's currently scoped.
+
+**References:**
+- `https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens`
+- `https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/deciding-when-to-build-a-github-app`
+
+#### Open questions deferred to Phase 4
+
+- Should `conformance.yml` use the `gh-aw` framework end-to-end (markdown workflows, built-in repo-memory, safe-outputs gating) or call `claude-code-action` directly with hand-rolled state management? The first is more idiomatic but adds a tech-preview dependency; the second is more direct and matches the doc's existing spec. Recommend: **direct invocation**, mirror gh-aw conventions for state.
+- SHA-pinning policy for `anthropics/claude-code-action@v1` vs floating tag — decide before merging Phase 4.
 
 ---
 
