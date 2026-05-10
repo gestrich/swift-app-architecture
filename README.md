@@ -1,27 +1,50 @@
 # Swift App Architecture
 
-A Claude Code plugin providing architectural guidance for Swift application development.
+A plugin for Claude Code and OpenAI Codex providing architectural guidance for Swift application development.
 
 ## Installation
 
-### Via Marketplace (Recommended)
+### Claude Code
 
-1. Add the marketplace to Claude Code:
+1. Add the marketplace:
    ```bash
    claude plugin marketplace add https://github.com/gestrich/swift-app-architecture
    ```
 
 2. Install the plugin:
-   ```
+   ```bash
    claude plugin install swift-app-architecture@gestrich-swift-app-architecture --scope user
    ```
-   > **Note:** Use `--scope user` instead of `--scope project` to install system-wide for all projects.
+   > Use `--scope user` to install system-wide for all projects.
 
-3. Restart Claude Code if necessary
+3. Restart Claude Code if necessary.
 
-### Local Testing
+**Uninstall:**
+```bash
+claude plugin uninstall swift-app-architecture@gestrich-swift-app-architecture --scope user
+```
 
-For local development or testing:
+### OpenAI Codex
+
+Codex discovers plugins through marketplace files. Add this entry to `~/.agents/plugins/marketplace.json` (create the file if it doesn't exist):
+
+```json
+{
+  "name": "gestrich",
+  "owner": { "name": "Bill Gestrich" },
+  "plugins": [
+    {
+      "name": "swift-app-architecture",
+      "source": { "source": "github", "repo": "gestrich/swift-app-architecture" }
+    }
+  ]
+}
+```
+
+**Uninstall:** Remove the entry from `~/.agents/plugins/marketplace.json`.
+
+### Local Testing (Claude Code)
+
 ```bash
 claude --plugin-dir ~/path/to/swift-app-architecture
 ```

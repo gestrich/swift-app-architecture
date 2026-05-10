@@ -1,0 +1,12 @@
+{
+  "name": "swift-app-architecture",
+  "version": "1.0.0",
+  "description": "Swift app architecture patterns: 4-layer architecture (Apps, Features, Services, SDKs) and SwiftUI Model-View conventions.",
+  "author": {
+    "name": "Bill Gestrich",
+    "url": "https://github.com/gestrich"
+  },
+  "repository": "https://github.com/gestrich/swift-app-architecture",
+  "license": "MIT",
+  "skills": "./skills/"
+}
