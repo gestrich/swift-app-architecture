@@ -1,0 +1,84 @@
+# Reusable Swift architecture conformance workflow.
+#
+# Callers invoke this with `uses:` and pass `ANTHROPIC_API_KEY` (required) plus
+# `UPSTREAM_PAT` (optional, for new-paradigm PRs against gestrich/swift-app-architecture).
+# Cron scheduling lives in the caller workflow, not here.
+
+name: Conformance
+
+on:
+  workflow_call:
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      UPSTREAM_PAT:
+        description: >-
+          Token with contents:write + pull-requests:write on gestrich/swift-app-architecture.
+          Required only if the run might open new-paradigm PRs upstream; otherwise omit.
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      UPSTREAM_REPO: gestrich/swift-app-architecture
+      STATE_BRANCH: claude/conformance-state
+      SKILLS_PATH: .conformance/swift-app-architecture/plugin/skills
+      AGENT_INSTRUCTIONS_PATH: .conformance/swift-app-architecture/.github/agent-instructions.md
+
+    steps:
+      - name: Checkout calling repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout best-practices repo (skills + agent instructions)
+        uses: actions/checkout@v4
+        with:
+          repository: gestrich/swift-app-architecture
+          path: .conformance/swift-app-architecture
+          ref: main
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "swift-best-practices-bot"
+          git config --global user.email "swift-best-practices-bot@users.noreply.github.com"
+
+      - name: Hydrate conformance state
+        # Pulls state.json off the state branch into .conformance/state.json so the agent
+        # can read it locally. The agent itself is responsible for pushing updates back
+        # to the state branch at the end of the run (see agent-instructions.md).
+        run: |
+          mkdir -p .conformance
+          if git ls-remote --exit-code --heads origin "$STATE_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$STATE_BRANCH:$STATE_BRANCH"
+            git show "$STATE_BRANCH:state.json" > .conformance/state.json 2>/dev/null \
+              || echo '{}' > .conformance/state.json
+          else
+            echo '{}' > .conformance/state.json
+          fi
+
+      - name: Run conformance review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --model claude-opus-4-7
+            --system-prompt-file ${{ env.AGENT_INSTRUCTIONS_PATH }}
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh repo:*),Bash(gh api:*),Bash(gh auth:*),Bash(mkdir:*),Bash(mv:*),Bash(cp:*),Bash(rm:*)"
+            --max-turns 40
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_PAT: ${{ secrets.UPSTREAM_PAT }}
+          UPSTREAM_REPO: ${{ env.UPSTREAM_REPO }}
+          STATE_BRANCH: ${{ env.STATE_BRANCH }}
+          SKILLS_PATH: ${{ env.SKILLS_PATH }}
+          AGENT_INSTRUCTIONS_PATH: ${{ env.AGENT_INSTRUCTIONS_PATH }}

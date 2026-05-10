@@ -1,0 +1,20 @@
+# Self-pilot caller for the reusable conformance workflow.
+#
+# Runs the architectural conformance review against this repo (the demo app under
+# demo/ plus the skills under plugin/skills/). This is the first pilot of the
+# reusable workflow — when external repos adopt it, they use the same shape but
+# point `uses:` at gestrich/swift-app-architecture/.github/workflows/conformance.yml@main.
+
+name: Self Conformance
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  conformance:
+    uses: ./.github/workflows/conformance.yml
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      UPSTREAM_PAT: ${{ secrets.SWIFT_BEST_PRACTICES_PAT }}

@@ -286,7 +286,10 @@ Build out `demo/` in this repo so it exemplifies the skills.
 
 ---
 
-## - [ ] Phase 4: Implement Reusable Conformance Workflow + Self-Pilot
+## - [x] Phase 4: Implement Reusable Conformance Workflow + Self-Pilot
+
+**Skills used**: none
+**Principles applied**: Followed Phase 2's verified patterns verbatim — `anthropics/claude-code-action@v1`, `--system-prompt-file`, `claude_args` for the tool allowlist, `secrets:` block (not `with:`) for forwarding `ANTHROPIC_API_KEY` and `UPSTREAM_PAT`. Always fetch the agent instructions from the upstream repo's `main` rather than the calling repo so external repos can't drift the contract by editing a local copy. State hydration is a workflow-level concern (read `state.json` off `claude/conformance-state` into `.conformance/state.json` before the agent runs); state writeback stays Claude's responsibility per the agent-instructions protocol so the "never write partial state on error" rule from Phase 1 holds end-to-end. Self-pilot uses `uses: ./.github/workflows/conformance.yml` (no `@ref`) so the same commit's reusable workflow definition runs against the same commit's demo app — tight feedback loop with no version skew. Tool allowlist scoped to `Read,Write,Edit,Glob,Grep` plus `Bash(git:*)` and narrow `Bash(gh ...)` patterns — no shell wildcards. Permissions scoped to the four required by the action; nothing extra. Floating `@v1` tag for the action with a deferred SHA-pinning decision noted in Phase 2's open questions.
 
 **Skills to read:** none
 
