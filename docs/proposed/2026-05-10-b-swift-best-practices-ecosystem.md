@@ -250,7 +250,10 @@ Every conformance run needs two distinct write contexts:
 
 ---
 
-## - [ ] Phase 3: Add Demo Application with XcodeGen
+## - [x] Phase 3: Add Demo Application with XcodeGen
+
+**Skills used**: `swift-architecture`, `swift-swiftui`, `swift-testing`
+**Principles applied**: Built one canonical `GreetingFeature` consumed by all three apps so the "zero duplication" rule from the architecture skill is visible at a glance — fix a bug once, three apps benefit. Kept the shared package as a single SwiftPM package with one target per layer module (Uniflow, GreetingClientSDK, CoreService, GreetingFeature) so dependency direction is enforced by the build system, not just convention. iOS app uses `@Observable` only at the Apps layer, with enum-based `ModelState` carrying `prior:` for last-known-good — the exact pattern from `swift-swiftui/model-state.md`. Each test type lives in a separate target as a reference: Swift Testing for unit (shared, iOS model), Swift Testing + VaporTesting for integration (Vapor routes), XCTest for UI (since XCUITest is still XCTest-only in Xcode 17). Renamed `vapor/` → `vapor-server/` because SwiftPM derives package identity from the directory's last path component, which collided with the remote `vapor` package; documented the deviation in the README. Lambda required `macOS 15` because `swift-aws-lambda-runtime` 2.x's `LambdaRuntime` initializer is gated on it.
 
 **Skills to read:** `swift-architecture`, `swift-swiftui`
 
