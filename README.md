@@ -26,22 +26,24 @@ claude plugin uninstall swift-app-architecture@gestrich-swift-app-architecture -
 
 ### OpenAI Codex
 
-Codex discovers plugins through marketplace files. Add this entry to `~/.agents/plugins/marketplace.json` (create the file if it doesn't exist):
+1. Add the marketplace:
+   ```bash
+   codex plugin marketplace add gestrich/swift-app-architecture
+   ```
 
-```json
-{
-  "name": "gestrich",
-  "owner": { "name": "Bill Gestrich" },
-  "plugins": [
-    {
-      "name": "swift-app-architecture",
-      "source": { "source": "github", "repo": "gestrich/swift-app-architecture" }
-    }
-  ]
-}
+2. Open a Codex session and install via the `/plugins` menu — select **swift-app-architecture** → **Install plugin**.
+   > There is no `codex plugin install` CLI command yet; installation must be done through the interactive TUI.
+
+3. After installing, the plugin can be toggled without the TUI by editing `~/.codex/config.toml`:
+   ```toml
+   [plugins."swift-app-architecture"]
+   enabled = true   # set to false to disable without uninstalling
+   ```
+
+**Uninstall:** Remove the `[plugins."swift-app-architecture"]` entry from `~/.codex/config.toml` and run:
+```bash
+codex plugin marketplace remove gestrich-swift-app-architecture
 ```
-
-**Uninstall:** Remove the entry from `~/.agents/plugins/marketplace.json`.
 
 ### Local Testing (Claude Code)
 
