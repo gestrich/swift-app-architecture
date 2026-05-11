@@ -6,7 +6,7 @@ user-invocable: true
 
 # Swift App Architecture
 
-A layered architecture for building Swift applications — macOS apps, CLI tools, and servers — emphasizing separation of concerns, code reuse across entry points, and testability through use case protocols.
+A layered architecture for building Swift applications — iOS and macOS apps, CLI tools, and servers — emphasizing separation of concerns, code reuse across entry points, and testability through use case protocols.
 
 ## Which Document Do I Need?
 
@@ -70,7 +70,7 @@ A layered architecture for building Swift applications — macOS apps, CLI tools
 
 Platform-specific entry points that handle I/O and own `@Observable` state.
 
-- Executable targets: macOS apps, CLI tools, server handlers
+- Executable targets: iOS apps, macOS apps, CLI tools, server handlers
 - `@Observable` models live here — not in Services or Features
 - Minimal business logic; focus on I/O and calling features
 - Enum-based state in `@Observable` models (not multiple independent properties)
@@ -143,13 +143,13 @@ useCase.stream() → print progress
 useCase.run()    → print result
 ```
 
-### Mac App
+### SwiftUI App (iOS / macOS)
 ```
 useCase.stream() → @Observable model → View
 ```
 
-Both CLI commands and Mac models share the same use cases. The difference:
-- **Mac app** routes through `@Observable` models to update observable state
+Both CLI commands and SwiftUI models share the same use cases. The difference:
+- **SwiftUI apps** (iOS / macOS) route through `@Observable` models to update observable state
 - **CLI** uses use cases directly since there is no observable state
 
 ## Quick Reference: Where to Put Things
