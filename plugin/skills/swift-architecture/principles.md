@@ -26,22 +26,24 @@ try await gitClient.push(...)
 try await apiClient.createPR(...)
 ```
 
-**Why:** When a model orchestrates multiple steps directly, it becomes responsible for keeping all its state consistent after each step — refreshing dependent data, updating caches, handling partial failures. Miss one refresh and the UI shows stale data. Use cases solve this by making multi-step operations atomic from the model's perspective: each stream yield is a complete, consistent state that the model assigns directly. This also keeps the app-layer thin, makes business logic testable, and ensures CLI and Mac app don't duplicate orchestration.
+**Why:** When a model orchestrates multiple steps directly, it becomes responsible for keeping all its state consistent after each step — refreshing dependent data, updating caches, handling partial failures. Miss one refresh and the UI shows stale data. Use cases solve this by making multi-step operations atomic from the model's perspective: each stream yield is a complete, consistent state that the model assigns directly. This also keeps the app-layer thin, makes business logic testable, and ensures every entry point — iOS/macOS app, CLI, server, Lambda — gets the same orchestration without duplicating it.
 
 ### 2. Zero Duplication
 
-CLI and Mac app share 100% of business logic through the Features layer. Use cases are consumed by both entry points — only the app-layer consumption differs.
+All entry points — iOS/macOS apps, CLI tools, servers, and Lambda functions — share 100% of business logic through the Features layer. Use cases are consumed by each entry point; only the app-layer consumption differs.
 
 **Benefits:**
 - Fix once, works everywhere
-- Add features once, both clients benefit
+- Add a feature once, every entry point benefits
 - Single source of truth for business logic
 
 **Pattern:**
 ```
 Feature (use case) ← shared
-    ├── CLI command (Apps layer)
-    └── @Observable model (Apps layer)
+    ├── @Observable model     (iOS / macOS app, Apps layer)
+    ├── CLI command           (CLI tool, Apps layer)
+    ├── Route handler         (Vapor server, Apps layer)
+    └── Lambda handler        (AWS Lambda, Apps layer)
 ```
 
 ### 3. Use Cases Orchestrate
@@ -102,7 +104,7 @@ class ImportModel {
 
 | Benefit | How |
 |---------|-----|
-| **Zero duplication** | CLI and Mac app share use cases |
+| **Zero duplication** | All entry points share use cases |
 | **Easy testing** | Test use cases without UI; mock SDKs for unit tests |
 | **Clear responsibilities** | Every piece of code has an obvious home |
 | **Reusability** | SDKs work in any project; use cases back multiple entry points |
@@ -123,7 +125,7 @@ This ensures:
 When reviewing code against these principles:
 
 - [ ] App-layer code calls one use case per user action (depth over width)
-- [ ] Business logic lives in Features, not duplicated between CLI and Mac app
+- [ ] Business logic lives in Features, not duplicated across entry points
 - [ ] Multi-step orchestration is in use cases, not app-layer models or services
 - [ ] SDKs are stateless `Sendable` structs with single-operation methods
 - [ ] `@Observable` only appears in the Apps layer
