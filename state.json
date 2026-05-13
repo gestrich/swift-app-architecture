@@ -1,9 +1,20 @@
 {
-  "last_run_timestamp": "2026-05-12T00:00:00Z",
+  "last_run_timestamp": "2026-05-13T00:00:00Z",
   "roadmap": {
     "skill": "swift-architecture",
-    "doc": "layers.md",
+    "doc": "creating-features.md",
     "cycle": 0
   },
-  "skipped_checks": []
+  "skipped_checks": [
+    {
+      "path": "plugin/skills/swift-architecture/layers.md",
+      "reason": "First decision flowchart's terminal leaf 'No -> Services Layer (shared utility)' is logically contradictory — the immediately preceding question already ruled out 'shared model, config, or stateful utility'. Real ambiguity, but separate from the platform-scope PR opened this run (#9) and lower priority than the still-outstanding Lambda/server composition-root gap. Re-evaluate next time layers.md comes up in the walk.",
+      "run": "2026-05-13T00:00:00Z"
+    },
+    {
+      "path": "plugin/skills/swift-architecture/creating-features.md",
+      "reason": "Outstanding gap (originally flagged in PR #7's notes): no dedicated section on the Lambda or server-route composition root. Demo has both. Deferred to the next roadmap doc, where it lands naturally.",
+      "run": "2026-05-13T00:00:00Z"
+    }
+  ]
 }
