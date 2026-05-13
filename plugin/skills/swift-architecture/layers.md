@@ -90,15 +90,15 @@ Features → Apps                        ❌
 Features → Other Features              ❌
 ```
 
-If two features need shared logic, extract to a **Service** or **SDK**. Compose features at the **App layer** (model composition or composite CLI commands).
+If two features need shared logic, extract to a **Service** or **SDK**. Compose features at the **App layer** — e.g., in `@Observable` models, CLI commands, server route handlers, or Lambda handlers.
 
 ## Layer Characteristics
 
 ### Apps Layer
-- Platform-specific entry points (macOS apps, CLI tools, servers)
+- Platform-specific entry points (iOS / macOS apps, CLI tools, servers, Lambda handlers)
 - **Only layer** with `@Observable` models
 - Minimal business logic — calls features and displays results
-- CLI commands are app-layer constructs parallel to Mac models
+- CLI commands, server route handlers, and Lambda handlers are app-layer constructs parallel to SwiftUI `@Observable` models
 
 ### Features Layer
 - Use cases conforming to `UseCase` / `StreamingUseCase` protocols
