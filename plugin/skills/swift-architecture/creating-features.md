@@ -364,7 +364,80 @@ struct ImportCommand: AsyncParsableCommand {
 }
 ```
 
-Both the Mac model and CLI command consume the **same use case** — zero duplication of business logic.
+### Server — Route Handler
+
+Create a route handler in `apps/MyServerApp/` that uses the use case directly. For request-response endpoints there's usually no consumer for intermediate progress states, so call `run(options:)` and map the final result onto the HTTP response. (`StreamingUseCase` provides a default `run()` that consumes the stream and returns the last state — see [Step 2](#step-2-define-use-cases).)
+
+```swift
+import Vapor
+import ImportFeature
+import CoreService
+
+func configure(_ app: Application) async throws {
+    let useCase = ImportUseCase()
+
+    app.post("import") { req async throws -> ImportSnapshot in
+        let config = try req.content.decode(ImportConfig.self)
+        let state = try await useCase.run(options: .init(config: config))
+        guard let snapshot = state.completedSnapshot else {
+            throw Abort(.internalServerError, reason: "Use case finished without snapshot")
+        }
+        return snapshot
+    }
+}
+```
+
+The route closure is the composition root: it constructs the use case, translates HTTP input into `Options`, calls the use case, and maps the result back to an HTTP response. No business logic lives in the route.
+
+### Lambda — Event Handler
+
+Lambda entry points have two pieces:
+- A `@main` struct that owns the runtime lifecycle.
+- A handler struct that owns the use case and translates between platform events and use case options/results.
+
+Keep these separate so the handler struct is directly unit-testable without standing up the Lambda runtime.
+
+```swift
+import AWSLambdaRuntime
+import AWSLambdaEvents
+import ImportFeature
+import CoreService
+
+@main
+struct ImportLambda {
+    static func main() async throws {
+        let handler = ImportHandler(useCase: ImportUseCase())
+        let runtime = LambdaRuntime { (event: APIGatewayV2Request, context: LambdaContext) async -> APIGatewayV2Response in
+            await handler.handle(event)
+        }
+        try await runtime.run()
+    }
+}
+
+struct ImportHandler {
+    let useCase: ImportUseCase
+
+    func handle(_ event: APIGatewayV2Request) async -> APIGatewayV2Response {
+        guard let sourcePath = event.queryStringParameters["source"], !sourcePath.isEmpty else {
+            return APIGatewayV2Response(statusCode: .badRequest, body: #"{"error":"Missing 'source' parameter"}"#)
+        }
+        let config = ImportConfig(source: .local(path: sourcePath), validateFirst: true, batchSize: 100)
+        do {
+            let state = try await useCase.run(options: .init(config: config))
+            guard let snapshot = state.completedSnapshot else {
+                return APIGatewayV2Response(statusCode: .internalServerError, body: #"{"error":"Use case finished without snapshot"}"#)
+            }
+            return APIGatewayV2Response(statusCode: .ok, body: encode(snapshot))
+        } catch {
+            return APIGatewayV2Response(statusCode: .internalServerError, body: #"{"error":"Unexpected failure"}"#)
+        }
+    }
+}
+```
+
+The handler struct holds the use case for the Lambda's lifetime; the `@main` struct only wires the runtime. This keeps `@main` trivial and concentrates platform-event mapping in one testable type.
+
+All app-layer entry points — Mac model, CLI command, server route handler, Lambda handler — consume the **same use case** with zero duplication of business logic.
 
 ### App Dependencies
 
