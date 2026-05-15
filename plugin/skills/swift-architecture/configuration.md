@@ -116,7 +116,7 @@ public enum ServicePath {
 
 ### Loading at the Apps Layer
 
-Configuration services are created at the Apps layer and injected into models and use cases:
+Configuration services are created at the Apps layer and injected into models. Use cases do not receive the `ConfigurationService` itself — they receive resolved values instead (see [Passing to Use Cases](#passing-to-use-cases)):
 
 ```swift
 @main
@@ -143,7 +143,7 @@ struct MyApp: App {
 
 ### Passing to Use Cases
 
-Use cases receive configuration through their initializer — they never load configuration themselves:
+Use cases receive **resolved values** (configured API clients, URLs, tokens) through their initializer — never the `ConfigurationService` itself. The app or model resolves configuration into these values before constructing the use case:
 
 ```swift
 public struct ImportUseCase: StreamingUseCase {
