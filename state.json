@@ -1,8 +1,8 @@
 {
-  "last_run_timestamp": "2026-05-14T00:00:00Z",
+  "last_run_timestamp": "2026-05-15T00:00:00Z",
   "roadmap": {
     "skill": "swift-architecture",
-    "doc": "configuration.md",
+    "doc": "code-style.md",
     "cycle": 0
   },
   "skipped_checks": [
