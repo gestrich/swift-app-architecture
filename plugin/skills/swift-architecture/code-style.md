@@ -77,6 +77,8 @@ let name = user.displayName  // Let caller handle nil appropriately
 
 **When fallbacks are appropriate**: Only use optionals with fallbacks when the value genuinely may be absent and that absence is *expected behavior*, not an error condition. Examples: user preferences that haven't been set yet, optional UI customizations.
 
+**When default parameter values are appropriate**: Default initializer parameters are the canonical dependency-injection pattern for stateless production dependencies — they let production callers write `Feature()` while tests still inject substitutes. The Use Case Rules in [creating-features.md](creating-features.md) require this pattern: `init(apiClient: APIClient = APIClient())`. The rule above targets *configuration defaults* (timeouts, retries, page sizes) that hide intent — not DI defaults that select an already-correct stateless production value.
+
 **Why**: Default values hide configuration decisions and make debugging harder. When something breaks, you want to know immediately that required data was missing, not discover later that a silent fallback caused unexpected behavior.
 
 ## Propagate Errors — Don't Swallow Them
@@ -123,7 +125,7 @@ func save() {
 | Imports | Alphabetical order | Random or grouped |
 | File structure | Properties → init → computed → methods → nested types | Mixed ordering |
 | Type aliases | Use actual types directly | `typealias` or `@_exported import` |
-| Parameters | Require values explicitly | Default parameter values |
+| Parameters | Require values explicitly; DI defaults on initializers are fine | Configuration defaults (timeouts, retries) |
 | Missing data | Surface errors immediately | `?? "fallback"` silent defaults |
 | Error handling | Propagate with `throws`, catch at app layer | `catch { print(...) }` silently swallowing |
 
@@ -134,7 +136,7 @@ When writing or reviewing code:
 - [ ] Imports are alphabetically ordered
 - [ ] File follows the property → init → computed → method → nested type order
 - [ ] No type aliases or re-exports
-- [ ] No unnecessary default parameter values
+- [ ] No configuration defaults that hide intent (DI defaults on initializers are fine — see creating-features.md)
 - [ ] No silent fallbacks masking missing data
 - [ ] Optional fallbacks are only for genuinely optional, non-error cases
 - [ ] Errors propagate via `throws` — no silent catch-and-ignore
