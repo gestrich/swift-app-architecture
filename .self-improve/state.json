@@ -1,0 +1,15 @@
+{
+  "last_run_timestamp": "2026-05-16T00:00:00Z",
+  "roadmap": {
+    "skill": "swift-architecture",
+    "doc": "examples.md",
+    "cycle": 0
+  },
+  "skipped_checks": [
+    {
+      "path": "plugin/skills/swift-architecture/layers.md",
+      "reason": "First decision flowchart's terminal leaf 'No -> Services Layer (shared utility)' is logically contradictory — the immediately preceding question already ruled out 'shared model, config, or stateful utility'. Real ambiguity. Re-evaluate next time layers.md comes up in the walk (cycle 1).",
+      "run": "2026-05-13T00:00:00Z"
+    }
+  ]
+}
