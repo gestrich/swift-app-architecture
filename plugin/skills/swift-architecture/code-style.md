@@ -61,6 +61,8 @@ func fetch() -> Result<Data, ClientError>
 
 If you find yourself wanting a type alias, consider whether the underlying type should be renamed or if a new type is warranted.
 
+**When typealiases are appropriate**: Protocol-conformance typealiases — `typealias State = ImportState` and `typealias Result = State` inside a `StreamingUseCase` conformer — pin an associated type to its concrete witness. They are not what this rule targets and are required where Swift can't infer the witness on its own (the default `run()` in [creating-features.md](creating-features.md) depends on `Result == State`, which the typealias establishes). The rule targets standalone aliases that invent a new name for an existing type and obscure it, like the `ClientResult` example above.
+
 ## Avoid Default and Fallback Values
 
 Prefer requiring data explicitly. Missing values often represent errors that should surface immediately rather than being silently masked.
@@ -122,7 +124,7 @@ func save() {
 |------|-----|-------|
 | Imports | Alphabetical order | Random or grouped |
 | File structure | Properties → init → computed → methods → nested types | Mixed ordering |
-| Type aliases | Use actual types directly | `typealias` or `@_exported import` |
+| Type aliases | Use actual types directly; protocol-conformance typealiases are fine | Standalone aliases (e.g. `typealias ClientResult = ...`) or `@_exported import` |
 | Parameters | Require values explicitly | Default parameter values |
 | Missing data | Surface errors immediately | `?? "fallback"` silent defaults |
 | Error handling | Propagate with `throws`, catch at app layer | `catch { print(...) }` silently swallowing |
@@ -133,7 +135,7 @@ When writing or reviewing code:
 
 - [ ] Imports are alphabetically ordered
 - [ ] File follows the property → init → computed → method → nested type order
-- [ ] No type aliases or re-exports
+- [ ] No standalone type aliases or re-exports (protocol-conformance typealiases like `typealias State = ImportState` are fine — see creating-features.md)
 - [ ] No unnecessary default parameter values
 - [ ] No silent fallbacks masking missing data
 - [ ] Optional fallbacks are only for genuinely optional, non-error cases
